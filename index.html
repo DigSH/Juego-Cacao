@@ -475,9 +475,12 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,200);
-const hemi=new THREE.HemisphereLight(0xb8c5db,0x3a2e24,1.1); scene.add(hemi);
+/* luz ambiental base: piso de iluminación para que ninguna cara quede en negro
+   (sin ella, interiores y caras en sombra solo reciben hemi.groundColor) */
+const ambLight=new THREE.AmbientLight(0xffffff,0.48); scene.add(ambLight);
+const hemi=new THREE.HemisphereLight(0xb8c5db,0x7a6a56,1.05); scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff4dc,1.2); sun.position.set(8,20,6); scene.add(sun);
-const moonLight=new THREE.DirectionalLight(0x7da8e6,0.65); scene.add(moonLight);
+const moonLight=new THREE.DirectionalLight(0x9dc0f0,0.95); scene.add(moonLight);
 scene.fog=new THREE.Fog(0x9fc0da,15,75);
 
 const COL={grass:0x4f6b34,dirt:0x5a4126,crate:0x8a5f30,plank:0xb07f3c,
@@ -973,7 +976,8 @@ const WX={
 const WDIR={N:0,NE:-Math.PI/4,E:-Math.PI/2,SE:-Math.PI*3/4,S:Math.PI,SW:Math.PI*3/4,W:Math.PI/2,NW:Math.PI/4};
 const WCOL={soleado:'#E7BE63',variable:'#AD9C84',lluvioso:'#7fa0b8'};
 const WNAME={soleado:'Soleado',variable:'Variable',lluvioso:'Lluvioso'};
-const DAY_SECONDS=150;          // un día completo (24 h) dura 2.5 minutos reales (reloj dinámico y vivo)
+const DAY_SECONDS=420;          // un día completo (24 h) dura 7 minutos reales
+                                // (con 150 s la mitad de la partida transcurría de noche: todo se veía oscuro)
 let hour=6.3,curW='soleado',rainStrength=0,mmToday=0;
 const DUSK_TOP=0x2c3a60,DUSK_BOT=0xd9834a,NIGHT_TOP=0x0b1226,NIGHT_BOT=0x1c2846;
 const DAWN_LIGHT=0xffa85c,NOON_LIGHT=0xfff0d2;
@@ -991,14 +995,16 @@ function updateSky(){
   moonSprite.material.opacity=clamp((0.10-dy)*4)*(0.50+0.50*WX[curW].sunF);
   // luz solar y lunar brillante
   sun.position.set(dx*60,Math.max(1.0,dy*60),dz*60);
-  sun.intensity=Math.max(0.40,W.sun*clamp(dy*2.2));
+  sun.intensity=Math.max(0.18,W.sun*clamp(dy*2.2));
   sun.color.setHex(lerpHex(DAWN_LIGHT,NOON_LIGHT,clamp(dy/0.38)));
   moonLight.position.set(-dx*60,Math.max(1.0,-dy*60),-dz*60);
-  moonLight.intensity=0.65*clamp(-dy*1.8);
+  moonLight.intensity=0.95*clamp(-dy*1.8);
   const dayF=clamp(dy*3.2);
-  hemi.intensity=0.68+(W.hemi-0.20)*dayF;
-  hemi.color.setHex(lerpHex(0x5c72a0,0xcedaf0,dayF));
-  hemi.groundColor.setHex(lerpHex(0x2a2018,0x4a3a2a,dayF));
+  // ambiental: nunca baja de 0.32x, así los interiores y sombras siguen siendo legibles de noche
+  ambLight.intensity=0.32+0.16*dayF;
+  hemi.intensity=0.50+(W.hemi-0.30)*dayF;
+  hemi.color.setHex(lerpHex(0x768cbe,0xcedaf0,dayF));
+  hemi.groundColor.setHex(lerpHex(0x4a4038,0x7a6a56,dayF)); // rebote del suelo, no negro
   stars.material.opacity=clamp(-dy*2.2)*0.8;
   const night=1-dayF;                        // el farol de la bodega se enciende de noche
   lamp.intensity=night*1.4;
