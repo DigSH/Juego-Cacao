@@ -396,6 +396,12 @@ function playSFX(type){
     noise.buffer=b;const f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=1800;
     const g=actx.createGain();g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
     noise.connect(f);f.connect(g);g.connect(actx.destination);noise.start(t);
+  }else if(type==='bark'){
+    const osc=actx.createOscillator(),g=actx.createGain();
+    osc.type='sawtooth';osc.frequency.setValueAtTime(340,t);
+    osc.frequency.exponentialRampToValueAtTime(150,t+0.12);
+    g.gain.setValueAtTime(0.18,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+    osc.connect(g);g.connect(actx.destination);osc.start(t);osc.stop(t+0.12);
   }
 }
 function playStep(){
@@ -1007,6 +1013,50 @@ STATIONS.forEach(s=>{
   m.position.set(s.x,2.6,s.z);world.add(m);beacons.push({mesh:m,station:s});
 });
 
+/* ---------- fauna de finca (pájaros, mariposas y perro guardián) ---------- */
+// 1. Bandada de pájaros en el cielo
+const birds=[];
+const birdWingGeo=new THREE.PlaneGeometry(0.35,0.18);
+for(let i=0;i<6;i++){
+  const bGroup=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.4,6),new THREE.MeshLambertMaterial({color:0x3a3028}));
+  body.rotation.x=Math.PI/2;bGroup.add(body);
+  const lWing=new THREE.Mesh(birdWingGeo,new THREE.MeshLambertMaterial({color:0x221a14,side:THREE.DoubleSide}));
+  lWing.position.set(-0.18,0,0);bGroup.add(lWing);
+  const rWing=new THREE.Mesh(birdWingGeo,new THREE.MeshLambertMaterial({color:0x221a14,side:THREE.DoubleSide}));
+  rWing.position.set(0.18,0,0);bGroup.add(rWing);
+  bGroup.position.set(-8+i*3,18+i*0.5,-4+i*2);
+  world.add(bGroup);
+  birds.push({group:bGroup,lWing,rWing,idx:i});
+}
+
+// 2. Mariposas revoloteando entre los cacaoteros
+const butterflies=[];
+const bfColors=[0xffe156,0x4db8ff,0xff7b3d];
+for(let i=0;i<12;i++){
+  const bfGroup=new THREE.Group();
+  const col=bfColors[i%3];
+  const wMat=new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide});
+  const wGeo=new THREE.PlaneGeometry(0.12,0.14);
+  const lW=new THREE.Mesh(wGeo,wMat);lW.position.set(-0.06,0,0);bfGroup.add(lW);
+  const rW=new THREE.Mesh(wGeo,wMat);rW.position.set(0.06,0,0);bfGroup.add(rW);
+  const bx=-18+(i%4)*4.5, bz=-10+Math.floor(i/4)*5.0;
+  bfGroup.position.set(bx,1.5,bz);
+  bfGroup.userData={bx,bz,lW,rW};
+  world.add(bfGroup);
+  butterflies.push(bfGroup);
+}
+
+// 3. Perro guardián de la finca en la bodega
+const dogGroup=new THREE.Group();
+dogGroup.position.set(2.4,getGroundY(2.4,3.2),3.2);
+const dogMat=new THREE.MeshLambertMaterial({color:0x8a5a2e});
+const dogBody=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.38,0.7),dogMat);dogBody.position.y=0.25;dogGroup.add(dogBody);
+const dogHead=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.35),dogMat);dogHead.position.set(0,0.48,0.32);dogGroup.add(dogHead);
+const dogTail=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.28,0.08),dogMat);dogTail.position.set(0,0.4,-0.36);dogTail.rotation.x=-0.6;dogGroup.add(dogTail);
+world.add(dogGroup);
+let lastBarkTime=0;
+
 /* ---------- jugador / cámara ---------- */
 const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
 const SENS={look:0.0040,move:5.1};   // move en unidades por segundo
@@ -1095,11 +1145,38 @@ function frame(){
   }
   stGeo.attributes.position.needsUpdate=true;
 
-  // mini-brújula HUD
-  const deg=Math.round((-player.yaw*180/Math.PI)%360+360)%360;
-  const dirs=['N','NE','E','SE','S','SW','W','NW'];
-  const dirName=dirs[Math.round(deg/45)%8];
-  $('cHeading').textContent=dirName+' '+deg+'°';
+  // animación de fauna (pájaros, mariposas, perro)
+  birds.forEach((b,i)=>{
+    const a=now*0.0006+i*Math.PI/3;
+    const rad=18+Math.sin(a*0.5)*4;
+    b.group.position.set(-6+Math.cos(a)*rad,17+Math.sin(a*2)*2,Math.sin(a)*rad);
+    b.group.rotation.y=-a+Math.PI/2;
+    b.lWing.rotation.z=Math.sin(now*0.012+i)*0.45;
+    b.rWing.rotation.z=-Math.sin(now*0.012+i)*0.45;
+  });
+
+  const isSunny=WX[curW].rain===0;
+  butterflies.forEach((bf,i)=>{
+    bf.visible=isSunny&&sunSprite.position.y>player.z-20;
+    if(!bf.visible)return;
+    const t=now*0.0015+i*1.4;
+    bf.position.x=bf.userData.bx+Math.sin(t*0.7)*1.8;
+    bf.position.z=bf.userData.bz+Math.cos(t*0.5)*1.8;
+    const gy=getGroundY(bf.position.x,bf.position.z);
+    bf.position.y=gy+1.2+Math.sin(t*1.8)*0.4;
+    bf.userData.lW.rotation.y=Math.sin(now*0.025+i)*0.75;
+    bf.userData.rW.rotation.y=-Math.sin(now*0.025+i)*0.75;
+  });
+
+  // perro de la finca reacciona si el jugador se acerca
+  dogTail.rotation.y=Math.sin(now*0.012)*0.4;
+  const distToDog=Math.hypot(player.x-2.4,player.z-3.2);
+  if(distToDog<4.0){
+    dogHead.lookAt(player.x,getGroundY(player.x,player.z)+1.62,player.z);
+    if(distToDog<2.2&&now-lastBarkTime>4500){
+      lastBarkTime=now;playSFX('bark');
+    }
+  }
 
   renderer.render(scene,camera);
 }
