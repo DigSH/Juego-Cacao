@@ -147,7 +147,7 @@
 <div id="hud" class="hidden">
   <div class="hud-l"><div class="lot" id="hLot">Lote A</div><div class="var" id="hVar">—</div></div>
   <div class="hud-weather"><span class="wicon" id="hWi"></span><span id="hW">—</span>
-    <span class="hsep"></span><span id="hClock" class="mono">06:20</span></div>
+    <span class="hsep"></span><span id="hClock" class="mono">06:00</span></div>
   <div class="hud-r" style="display:flex;align-items:center;gap:8px"><button id="hMute" class="hud-sound" title="Audio (activar/silenciar)" onclick="toggleMute()">🔊</button><div><span class="w" id="hWallet">$0</span><small>ingresos</small></div></div>
 </div>
 <div id="compass" class="hidden"><span id="cHeading" class="c-deg">N 0°</span><span class="hsep"></span><span id="cMarkers">Navegación</span></div>
@@ -983,7 +983,7 @@ const WCOL={soleado:'#E7BE63',variable:'#AD9C84',lluvioso:'#7fa0b8'};
 const WNAME={soleado:'Soleado',variable:'Variable',lluvioso:'Lluvioso'};
 const DAY_SECONDS=420;          // un día completo (24 h) dura 7 minutos reales
                                 // (con 150 s la mitad de la partida transcurría de noche: todo se veía oscuro)
-let hour=6.3,curW='soleado',rainStrength=0,mmToday=0;
+let hour=6.0,curW='soleado',rainStrength=0,mmToday=0;
 const DUSK_TOP=0x2c3a60,DUSK_BOT=0xd9834a,NIGHT_TOP=0x0b1226,NIGHT_BOT=0x1c2846;
 const DAWN_LIGHT=0xffa85c,NOON_LIGHT=0xfff0d2;
 function sunElev(h){return Math.sin((h-6)/12*Math.PI);}   // 6h sale, 12h cenit, 18h se pone
@@ -1341,7 +1341,7 @@ const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
 window.resetGame=function(){const f=$('final');if(f)f.classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
 function loadLot(){
   const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
-  hour=9.0;                                   // cada lote arranca a las 09:00 AM con luz solar mañanera brillante
+  hour=6.0;                                   // cada lote arranca a las 06:00 AM, con el amanecer sobre el cacaotal
   syncControls();setWeather(lot.weather);setBeans('beanW');
   $('hClock').textContent=fmtHour(hour);
   const name=playerGender==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina';

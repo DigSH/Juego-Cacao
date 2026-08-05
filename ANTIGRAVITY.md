@@ -28,6 +28,11 @@ Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explo
   - **Mariposas Botánicas**: Revolotean entre árboles y realizan posados periódicos en las hojas y mazorcas.
 - **Iluminación de Escena Equilibrada**:
   - **AmbientLight** (`ambLight`) combinada con **HemisphereLight**, sol y **moonLight** para eliminar caras en negro sólido en sombras e interiores.
+  - `ambLight` nunca baja de `0.32×` y `hemi.groundColor` simula rebote del suelo, de modo que ninguna cara queda a `0` de luz ni de noche.
+- **Ciclo de Día y Noche**:
+  - `DAY_SECONDS = 420`: un día completo (24 h) dura 7 minutos reales.
+  - Cada lote arranca a las **06:00 AM** (`loadLot()`), con el amanecer sobre el cacaotal.
+  - `updateSky()` interpola sol, luna, hemisférica, ambiental, cielo y niebla en cada cuadro a partir de la elevación solar.
 - **Sintetizador de Audio Procedural (`Web Audio API`)**:
   - Pasos en terreno, viento y lluvia ambiental continua, efectos de UI, ladridos del perro y campanada de venta (*chime*).
   - Botón de silenciar/activar en el HUD (`🔊 / 🔇`).
@@ -52,6 +57,19 @@ Para validar la sintaxis de la aplicación tras editar el motor:
 
 ```bash
 node -e "const fs = require('fs'); const html = fs.readFileSync('fermento.html', 'utf8'); const script = html.substring(html.indexOf('<script>')+8, html.lastIndexOf('</script>')); new Function(script);"
+```
+
+> ⚠️ **`new Function()` solo compila: no ejecuta nada.** No detecta errores de
+> tiempo de ejecución. Un `ReferenceError` por *temporal dead zone* (usar un
+> `const`/`let` antes de su declaración) pasa esta verificación y aun así aborta
+> `boot()` entero, dejando el lienzo 3D en negro sólido con el HUD mostrando sus
+> valores estáticos del HTML. **Siempre hay que abrir la página y mirar la
+> consola.** Sin navegador a mano, Chrome headless sirve:
+
+```bash
+chrome --headless=new --disable-gpu --enable-unsafe-swiftshader \
+  --enable-logging=stderr --virtual-time-budget=12000 \
+  --screenshot=shot.png "file:///ruta/a/fermento.html" 2>&1 | grep CONSOLE
 ```
 
 Para sincronizar `index.html`:
