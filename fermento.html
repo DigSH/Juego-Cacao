@@ -1228,7 +1228,6 @@ function frame(){
       const idleSway=Math.sin(now*0.002)*0.003;
       handGroup.position.set(idleSway,-0.38+idleSway*0.5,-0.55);
     }
-    applyCam();
     // estación cercana
     let best=null,bd=INTERACT;
     for(const s of STATIONS){const d=Math.hypot(player.x-s.x,player.z-s.z);if(d<bd){bd=d;best=s;}}
@@ -1236,6 +1235,7 @@ function frame(){
       if(best){$('interactLbl').textContent=best.lbl;$('interactBtn').classList.remove('hidden');}
       else $('interactBtn').classList.add('hidden');}
   }
+  applyCam(); // asegurar que la cámara siempre esté posicionada a 1.62m sobre el terreno
   tick(dt);                                   // el día corre dinámicamente
   $('hClock').textContent=fmtHour(hour);
   // rotar balizas 3D
@@ -1326,6 +1326,8 @@ function frame(){
 }
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);
+setWeather('soleado');
+applyCam();
 frame();
 
 /* ===================== JUEGO / FLUJO ===================== */
