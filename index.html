@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>Fermento — beneficiadero explorable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root{--bg:#17110C;--panel:#221A13;--panel2:#2C2118;--panel3:#372A1E;--pulp:#EFE6D5;
+    --muted:#AD9C84;--faint:#7E7059;--violet:#9270CE;--amber:#CE8B3A;--gold:#E7BE63;--danger:#C4713E;
+    --line:rgba(239,230,213,.14);--fm:'IBM Plex Mono',monospace;--fb:'IBM Plex Sans',system-ui,sans-serif;--fd:'Fraunces',Georgia,serif;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:#000;color:var(--pulp);font-family:var(--fb);
+    -webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none}
+  #world{position:fixed;inset:0;display:block;touch-action:none;z-index:0}
+  .hidden{display:none!important}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .mono{font-family:var(--fm);font-variant-numeric:tabular-nums}
+
+  /* HUD */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;
+    align-items:flex-start;gap:8px;padding:calc(env(safe-area-inset-top) + 12px) 14px 12px;
+    background:linear-gradient(#000a,transparent);pointer-events:none}
+  .hud-l .lot{font-family:var(--fd);font-weight:900;font-size:16px;letter-spacing:-.02em}
+  .hud-l .var{font-family:var(--fm);font-size:11px;color:var(--amber)}
+  .hud-weather{display:flex;align-items:center;gap:7px;font-family:var(--fm);font-size:12px;color:var(--pulp);
+    background:#0007;border:1px solid var(--line);border-radius:20px;padding:5px 11px;backdrop-filter:blur(3px)}
+  .hud-sound{font-size:13px;background:#0007;border:1px solid var(--line);border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);pointer-events:auto;cursor:pointer}
+  .wicon{width:12px;height:12px;border-radius:50%;box-shadow:0 0 8px -1px currentColor}
+  .hsep{width:1px;height:12px;background:var(--line)}
+  #hClock{color:var(--gold)}
+  .hud-r{text-align:right;font-family:var(--fm)}
+  .hud-r .w{color:var(--gold);font-size:15px}
+  .hud-r small{display:block;font-size:9px;letter-spacing:.15em;color:var(--faint);text-transform:uppercase}
+
+  #crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
+    background:#fff8;z-index:3;pointer-events:none}
+
+  /* joystick */
+  #joy{position:fixed;left:calc(env(safe-area-inset-left) + 22px);bottom:calc(env(safe-area-inset-bottom) + 26px);
+    width:120px;height:120px;border-radius:50%;background:#0005;border:1px solid var(--line);z-index:6;
+    touch-action:none;backdrop-filter:blur(2px)}
+  #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;
+    background:#EFE6D5cc;border:2px solid #fff6;transition:none}
+  #joyHint{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-family:var(--fm);font-size:9px;
+    letter-spacing:.1em;color:var(--muted)}
+  #lookHint{position:fixed;right:calc(env(safe-area-inset-right) + 24px);bottom:calc(env(safe-area-inset-bottom) + 60px);
+    font-family:var(--fm);font-size:10px;color:#fff8;z-index:6;pointer-events:none;text-align:right;text-shadow:0 1px 3px #000}
+
+  #interactBtn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 40px);transform:translateX(-50%);
+    z-index:7;background:var(--amber);color:#1a1206;font-family:var(--fd);font-weight:600;font-size:16px;
+    padding:13px 26px;border-radius:30px;box-shadow:0 6px 20px -6px #000;display:flex;gap:9px;align-items:center}
+  #interactBtn .key{font-family:var(--fm);font-size:11px;background:#0002;border-radius:6px;padding:2px 7px}
+
+  /* bottom-sheet panels */
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:9;background:var(--panel);
+    border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    padding:20px 18px calc(env(safe-area-inset-bottom) + 22px);max-width:580px;margin:0 auto;
+    box-shadow:0 -12px 40px -12px #000}
+  .sheet h3{font-family:var(--fd);font-size:21px;letter-spacing:-.02em;margin-bottom:4px}
+  .sheet .sub{font-family:var(--fm);font-size:12px;color:var(--muted);margin-bottom:18px}
+  .ctrl{margin-bottom:18px}
+  .ctrl-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  .ctrl-top label{font-size:14px;font-weight:600}
+  .ctrl-val{font-family:var(--fm);font-size:15px;color:var(--amber)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:var(--panel3);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--amber);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--amber)}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--amber);border:3px solid var(--bg)}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:11px 6px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);font-size:13px;color:var(--muted);line-height:1.25}
+  .seg button small{display:block;font-size:10px;color:var(--faint);margin-top:2px}
+  .seg button[aria-pressed=true]{background:var(--panel3);border-color:var(--amber);color:var(--pulp)}
+  .seg button[aria-pressed=true] small{color:var(--amber)}
+  .note{font-size:12.5px;color:var(--muted);background:var(--panel2);border-left:2px solid var(--amber);border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:16px}
+
+  /* estación meteorológica */
+  .wx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:14px}
+  .wx-cell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 9px}
+  .wx-cell small{display:block;font-family:var(--fm);font-size:8.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--faint);margin-bottom:3px;white-space:nowrap}
+  .wx-cell b{font-family:var(--fm);font-size:17px;font-weight:400;color:var(--pulp);letter-spacing:-.01em}
+  .wx-cell b i{font-style:normal;font-size:10px;color:var(--muted);margin-left:1px}
+  .wx-h{font-family:var(--fm);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;
+    color:var(--faint);margin:2px 0 8px}
+  svg.wx-arc{width:100%;height:58px;display:block;margin-bottom:14px;overflow:visible}
+  .wx-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;
+    background:var(--panel2);border:1px solid transparent;margin-bottom:5px;color:var(--muted)}
+  .wx-row.on{border-color:var(--amber);color:var(--pulp)}
+  .wx-row .nm{flex:1;font-size:13px}
+  .wx-row .kk{font-family:var(--fm);font-size:11px;color:var(--faint)}
+  .wx-row .dd{font-family:var(--fm);font-size:15px;color:var(--amber);min-width:56px;text-align:right}
+  .wx-row.on .dd{color:var(--gold)}
+  .cta{display:block;width:100%;padding:15px;border-radius:12px;background:var(--amber);color:#1a1206;font-family:var(--fd);font-weight:600;font-size:16px}
+  .cta.ghost{background:transparent;border:1px solid var(--line);color:var(--pulp);font-family:var(--fb);font-weight:500;margin-top:10px}
+
+  /* result */
+  .grade-name{font-family:var(--fd);font-weight:900;font-size:25px;text-align:center;letter-spacing:-.02em}
+  .grade-sub{font-family:var(--fm);font-size:12px;color:var(--muted);text-align:center}
+  .price-row{display:flex;justify-content:center;align-items:baseline;gap:7px;margin:12px 0 2px}
+  .price-big{font-family:var(--fm);font-size:32px}
+  .price-unit{font-family:var(--fm);font-size:12px;color:var(--muted)}
+  .price-detail{text-align:center;font-family:var(--fm);font-size:11px;color:var(--faint);margin-bottom:12px}
+  .radar-wrap{display:grid;place-items:center;margin:2px 0 14px}
+  svg.radar{width:100%;max-width:260px;height:auto;overflow:visible}
+  .radar-axis-label{font-family:var(--fm);font-size:10px;fill:var(--muted)}
+  .why-item{display:flex;gap:9px;font-size:13px;padding:7px 0;border-top:1px solid rgba(239,230,213,.06);color:var(--muted)}
+  .why-item:first-child{border-top:none}
+  .why-item .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+  .why-item b{color:var(--pulp)}
+
+  /* overlays intro/final/err */
+  .overlay{position:fixed;inset:0;z-index:12;display:flex;flex-direction:column;justify-content:center;
+    padding:34px 26px;background:radial-gradient(120% 90% at 50% 20%,#241a12dd,#0d0906ee);max-width:600px;margin:0 auto}
+  .overlay .lead{font-family:var(--fm);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:16px}
+  .overlay h1{font-family:var(--fd);font-weight:900;font-size:clamp(40px,13vw,64px);line-height:.92;letter-spacing:-.03em;margin-bottom:8px}
+  .overlay h1 em{font-style:italic;font-weight:600;color:var(--amber)}
+  .overlay p{color:var(--muted);font-size:15px;margin-bottom:14px;max-width:44ch}
+  .overlay p strong{color:var(--pulp)}
+  .final-total{font-family:var(--fm);font-size:42px;color:var(--gold);line-height:1;margin:4px 0 12px}
+  .tally{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+  .tally span{font-family:var(--fm);font-size:12px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .reflect{background:#0004;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:18px}
+  .reflect h4{font-family:var(--fd);font-size:16px;margin-bottom:8px}
+  .reflect ol{padding-left:18px;color:var(--muted);font-size:13.5px}
+  .reflect li{margin-bottom:6px}
+  .steps{font-family:var(--fm);font-size:12px;color:var(--muted);margin:10px 0 22px;line-height:1.9}
+  .steps b{color:var(--amber)}
+</style>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-l"><div class="lot" id="hLot">Lote A</div><div class="var" id="hVar">—</div></div>
+  <div class="hud-weather"><span class="wicon" id="hWi"></span><span id="hW">—</span>
+    <span class="hsep"></span><span id="hClock" class="mono">06:20</span></div>
+  <div class="hud-r" style="display:flex;align-items:center;gap:8px"><button id="hMute" class="hud-sound" title="Audio (activar/silenciar)" onclick="toggleMute()">🔊</button><div><span class="w" id="hWallet">$0</span><small>ingresos</small></div></div>
+</div>
+<div id="crosshair" class="hidden"></div>
+<div id="lookHint" class="hidden">arrastra<br>para mirar</div>
+<div id="joy" class="hidden"><div id="joyKnob"></div><div id="joyHint">MOVER</div></div>
+<button id="interactBtn" class="hidden"><span id="interactLbl">Abrir</span><span class="key">E</span></button>
+
+<!-- FERMENTACIÓN -->
+<div id="panelFerment" class="sheet hidden">
+  <h3>Cajón de fermentación</h3><div class="sub">de la baba al grano marrón</div>
+  <div class="ctrl"><div class="ctrl-top"><label>Días de fermentación</label><span class="ctrl-val mono" id="fdVal">5 d</span></div>
+    <input type="range" id="fd" min="0" max="8" step="1" value="5"></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Volteos (aireación)</label><span class="ctrl-val mono" id="voVal">3</span></div>
+    <input type="range" id="vo" min="0" max="5" step="1" value="3"></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Recipiente</label></div>
+    <div class="seg" id="cajon">
+      <button data-v="madera" aria-pressed="true">Madera<small>retiene calor</small></button>
+      <button data-v="microlote" aria-pressed="false">Microlote<small>intermedio</small></button>
+      <button data-v="canasto" aria-pressed="false">Canasto<small>pierde calor</small></button>
+    </div></div>
+  <button class="cta" onclick="closePanel()">Listo</button>
+</div>
+
+<!-- SECADO -->
+<div id="panelDry" class="sheet hidden">
+  <h3>Patio de secado</h3><div class="sub">baja la humedad a ~7%</div>
+  <div class="note" id="dryWeatherNote">—</div>
+  <div class="ctrl"><div class="ctrl-top"><label>Días de secado</label><span class="ctrl-val mono" id="ddVal">6 d</span></div>
+    <input type="range" id="dd" min="0" max="10" step="1" value="6"></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Método</label></div>
+    <div class="seg" id="secado">
+      <button data-v="sol" aria-pressed="true">Sol lento<small>disipa acidez</small></button>
+      <button data-v="marquesina" aria-pressed="false">Marquesina<small>estable</small></button>
+      <button data-v="artificial" aria-pressed="false">Artificial<small>rápido/caliente</small></button>
+    </div></div>
+  <button class="cta" onclick="closePanel()">Listo</button>
+</div>
+
+<!-- ESTACIÓN METEOROLÓGICA -->
+<div id="panelWeather" class="sheet hidden">
+  <h3>Estación meteorológica</h3><div class="sub" id="wxSub">—</div>
+  <div class="wx-grid" id="wxGrid"></div>
+  <div class="wx-h">Recorrido del sol</div>
+  <div id="wxArc"></div>
+  <div class="wx-h">Días para llegar a 7% de humedad, con este clima</div>
+  <div id="wxDry"></div>
+  <div class="note" id="wxNote">—</div>
+  <button class="cta" onclick="closePanel()">Listo</button>
+</div>
+
+<!-- BODEGA / PROCESAR -->
+<div id="panelSell" class="sheet hidden">
+  <h3>Bodega de acopio</h3><div class="sub">procesa el lote y véndelo</div>
+  <div class="note">Al procesar se transforma en nibs → licor → barra, y se define el grado y el precio según lo que hiciste en el cajón y el patio.</div>
+  <button class="cta" onclick="doProcess()">Procesar y vender</button>
+</div>
+
+<!-- RESULTADO -->
+<div id="panelResult" class="sheet hidden">
+  <div class="grade-name" id="rGrade">—</div><div class="grade-sub" id="rSub">—</div>
+  <div class="price-row"><span class="price-big mono" id="rPrice">$0</span><span class="price-unit">/kg seco</span></div>
+  <div class="price-detail mono" id="rDetail">—</div>
+  <div class="radar-wrap"><div id="rRadar"></div></div>
+  <div id="rWhy"></div>
+  <button class="cta" id="rNext" onclick="nextLot()" style="margin-top:14px">Siguiente lote</button>
+</div>
+
+<!-- INTRO -->
+<div id="intro" class="overlay">
+  <div class="lead">Serious game · postcosecha de cacao</div>
+  <h1>Beneficiadero<br><em>explorable</em></h1>
+  <p>Caminas por tu beneficiadero en Charalá. Recibes un lote y lo llevas por el proceso <strong>tú mismo</strong>:</p>
+  <div class="steps">→ <b>Cajón</b> de fermentación · días, volteos, recipiente<br>→ <b>Patio</b> de secado · ojo con el clima<br>→ <b>Estación meteorológica</b> · consulta antes de decidir<br>→ <b>Bodega</b> · procesa, vende y ve tu grado</div>
+  <p>El sol cruza el cielo y marca el día. El <strong>sol y la lluvia</strong> cambian el secado. El sabor no se cosecha: se fermenta.</p>
+  <button class="cta" onclick="enter()">Entrar al beneficiadero</button>
+</div>
+
+<!-- FINAL -->
+<div id="final" class="overlay hidden">
+  <div class="lead">Cierre de campaña</div>
+  <h1 style="font-size:clamp(34px,11vw,54px)">Balance</h1>
+  <div class="lead" style="margin:14px 0 4px">Ingreso total</div>
+  <div class="final-total mono" id="fTotal">$0</div>
+  <div class="tally" id="fTally"></div>
+  <p id="fVerdict"></p>
+  <div class="reflect"><h4>Para la reflexión</h4>
+    <ol><li>¿Qué movió más el precio: fermentación o secado?</li>
+    <li>¿Trataste igual al CCN-51 que al criollo? ¿Debías?</li>
+    <li>¿Dónde se pierde en tu finca el cacao que aquí se castigó?</li></ol></div>
+  <button class="cta" onclick="resetGame()">Jugar otra campaña</button>
+</div>
+
+<!-- ERROR -->
+<div id="err" class="overlay hidden">
+  <div class="lead">Motor 3D</div>
+  <h1 style="font-size:clamp(30px,9vw,46px)">Sin conexión<br>al motor</h1>
+  <p>No se pudo cargar Three.js desde el CDN. Revisa la conexión y recarga la página.</p>
+</div>
+
+<script>
+/* ===================== MODELO (calibrable) ===================== */
+const K={OPT_FERM:5.5,SIG_FERM:1.35,OPT_VOLTEOS:3,START_MOISTURE:55,TARGET_MOISTURE:7,SIG_DRY:1.4,MOLD_THRESHOLD:8.5};
+const BOX_HEAT={madera:1.0,microlote:0.82,canasto:0.62};
+const DRY_K={sol:{soleado:0.60,variable:0.42,lluvioso:0.24},marquesina:{soleado:0.48,variable:0.42,lluvioso:0.40},artificial:{soleado:0.90,variable:0.88,lluvioso:0.82}};
+const DRY_EQ={sol:5.8,marquesina:5.8,artificial:5.0};
+const ACID_MOD={sol:-0.16,marquesina:-0.05,artificial:0.13};
+const VARIETIES={
+  trinitario:{name:'Trinitario',aroma:0.66,acid:0.50,bitter:0.46,yield:0.85,note:'Equilibrado y resistente. Perdona errores; techo de aroma medio-alto.'},
+  ccn51:{name:'CCN-51',aroma:0.34,acid:0.70,bitter:0.64,yield:1.0,note:'Productivo y robusto, pero ácido y de aroma corriente. No esperes fino de aroma.'},
+  criollo:{name:'Criollo regional',aroma:0.94,acid:0.42,bitter:0.34,yield:0.58,note:'Alto potencial fino de aroma, pero delicado: castiga cualquier exceso.'},
+};
+const LOTS=[
+  {variety:'trinitario',monilia:0.06,weather:'soleado',kg:55},
+  {variety:'ccn51',monilia:0.10,weather:'variable',kg:72},
+  {variety:'criollo',monilia:0.13,weather:'soleado',kg:46},
+  {variety:'trinitario',monilia:0.21,weather:'lluvioso',kg:60},
+  {variety:'criollo',monilia:0.28,weather:'variable',kg:50},
+];
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const gauss=(x,mu,s)=>Math.exp(-((x-mu)**2)/(2*s*s));
+const cop=n=>'$'+Math.round(n).toLocaleString('es-CO');
+function evaluate(lot,d){
+  const V=VARIETIES[lot.variety],boxHeat=BOX_HEAT[d.cajon];
+  const effDays=d.fermDays*(0.75+0.25*boxHeat);
+  const timing=gauss(effDays,K.OPT_FERM,K.SIG_FERM);
+  const under=effDays<4.2,over=d.fermDays>=7;
+  let vScore=d.volteos<K.OPT_VOLTEOS?clamp(0.45+0.18*d.volteos):clamp(1-0.14*(d.volteos-K.OPT_VOLTEOS));
+  const fermQ=clamp(timing*(0.5+0.5*vScore)*(0.7+0.3*boxHeat));
+  const ammonia=over?clamp((d.fermDays-6.4)/2.0):0;
+  const eq=DRY_EQ[d.secado],k=DRY_K[d.secado][lot.weather];
+  const finalMoisture=eq+(K.START_MOISTURE-eq)*Math.exp(-k*d.dryDays);
+  const dryQ=gauss(finalMoisture,K.TARGET_MOISTURE,K.SIG_DRY);
+  const mold=finalMoisture>K.MOLD_THRESHOLD?clamp((finalMoisture-K.MOLD_THRESHOLD)/6+0.25):0;
+  const caseHarden=(d.secado==='artificial'&&d.dryDays<5)?0.35:0;
+  const overDry=finalMoisture<5.2?clamp((5.2-finalMoisture)/2)*0.4:0;
+  const acidMod=ACID_MOD[d.secado]*clamp(d.dryDays/6);
+  const aroma=clamp(V.aroma*fermQ*(0.55+0.45*dryQ)-ammonia*0.9-caseHarden*0.6-mold*0.5);
+  const frutal=clamp(V.aroma*fermQ*(0.6+0.4*dryQ)-ammonia-caseHarden*0.4-mold*0.5);
+  const acidez=clamp(V.acid+acidMod+caseHarden*0.5-fermQ*0.12);
+  const amargor=clamp(V.bitter+(under?0.22:0)-fermQ*0.16);
+  const astring=clamp((under?0.55:0.15)+(1-fermQ)*0.5-dryQ*0.1);
+  const profile={Aroma:aroma,'Frutal/floral':frutal,Acidez:acidez,Amargor:amargor,Astringencia:astring};
+  const defect=Math.max(ammonia,mold,caseHarden*0.8,overDry);
+  const balance=1-Math.abs(acidez-0.4)*0.6-Math.abs(amargor-0.4)*0.5;
+  let qi=clamp(aroma*0.34+(1-astring)*0.2+clamp(balance)*0.2+dryQ*0.14+fermQ*0.12-defect);
+  let grade,gsub,base;
+  if(defect>0.45||mold>0.4){grade='Pasilla / rechazo';gsub='defecto que descalifica';base=5800;}
+  else if(qi>=0.76&&V.aroma>=0.6&&aroma>=0.62){grade='Fino de aroma';gsub='premium · exportación';base=15000+aroma*7000;}
+  else if(qi>=0.55){grade='Comercial';gsub='grado estándar bueno';base=10000+qi*2500;}
+  else{grade='Corriente';gsub='mercado local básico';base=8200;}
+  const dryKg=lot.kg*V.yield*0.42*(1-lot.monilia);
+  const priceKg=base*(0.95+Math.random()*0.1),revenue=priceKg*dryKg;
+  const why=[];
+  if(under)why.push(['#9270CE','<b>Fermentación corta.</b> Granos pizarra: astringencia y amargor altos, aroma bajo.']);
+  else if(over)why.push(['#8B9A5A','<b>Sobre-fermentación.</b> Notas a amoníaco; el aroma fino se pierde.']);
+  else why.push(['#CE8B3A','<b>Fermentación en punto.</b> Precursores de sabor bien desarrollados.']);
+  if(d.volteos<2)why.push(['#9270CE','<b>Pocos volteos.</b> Fermentación despareja, bolsas anaerobias.']);
+  if(d.cajon==='canasto')why.push(['#AD9C84','El canasto pierde calor: más días o cajón de madera.']);
+  if(mold>0)why.push(['#C4713E','<b>Secado insuficiente ('+finalMoisture.toFixed(1)+'%).</b> Riesgo de moho: castigo fuerte.']);
+  else if(caseHarden>0)why.push(['#C4713E','<b>Secado rápido y caliente.</b> Se sella el grano y encierra la acidez.']);
+  else if(overDry>0)why.push(['#AD9C84','Grano sobre-seco ('+finalMoisture.toFixed(1)+'%): quebradizo.']);
+  else if(d.secado==='sol')why.push(['#CE8B3A','<b>Secado solar lento.</b> La acidez se disipa: mejor aroma.']);
+  if(lot.weather==='lluvioso'&&d.secado!=='marquesina')why.push(['#AD9C84','Con lluvia, la marquesina protege el secado mejor que el sol directo.']);
+  if(lot.monilia>0.2)why.push(['#AD9C84','Alta monilia ('+Math.round(lot.monilia*100)+'%): masa aprovechable perdida antes de empezar.']);
+  return {grade,gsub,priceKg,revenue,dryKg,finalMoisture,profile,fermState:under?'under':over?'over':'well',why};
+}
+
+/* ===================== SINTETIZADOR DE AUDIO (Web Audio API) ===================== */
+let actx=null, audioMuted=false, rainGain=null, windGain=null, stepTimer=0;
+function initAudio(){
+  if(actx){if(actx.state==='suspended')actx.resume();return;}
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;actx=new AC();
+    const bufSize=actx.sampleRate*2,noiseBuf=actx.createBuffer(1,bufSize,actx.sampleRate),out=noiseBuf.getChannelData(0);
+    for(let i=0;i<bufSize;i++)out[i]=Math.random()*2-1;
+    const rainSrc=actx.createBufferSource();rainSrc.buffer=noiseBuf;rainSrc.loop=true;
+    const rainFilt=actx.createBiquadFilter();rainFilt.type='lowpass';rainFilt.frequency.value=1000;
+    rainGain=actx.createGain();rainGain.gain.value=0;
+    rainSrc.connect(rainFilt);rainFilt.connect(rainGain);rainGain.connect(actx.destination);rainSrc.start();
+    const windSrc=actx.createBufferSource();windSrc.buffer=noiseBuf;windSrc.loop=true;
+    const windFilt=actx.createBiquadFilter();windFilt.type='bandpass';windFilt.frequency.value=350;windFilt.Q.value=2.5;
+    windGain=actx.createGain();windGain.gain.value=0;
+    windSrc.connect(windFilt);windFilt.connect(windGain);windGain.connect(actx.destination);windSrc.start();
+  }catch(e){}
+}
+function toggleMute(){
+  audioMuted=!audioMuted;const btn=$('hMute');if(btn)btn.textContent=audioMuted?'🔇':'🔊';
+  if(rainGain&&actx)rainGain.gain.setTargetAtTime(audioMuted?0:rainStrength*0.12,actx.currentTime,0.1);
+  if(windGain&&actx)windGain.gain.setTargetAtTime(audioMuted?0:0.02,actx.currentTime,0.1);
+}
+function playSFX(type){
+  if(!actx||audioMuted)return;if(actx.state==='suspended')actx.resume();
+  const t=actx.currentTime;
+  if(type==='click'||type==='slider'){
+    const osc=actx.createOscillator(),g=actx.createGain();
+    osc.type=type==='click'?'sine':'triangle';
+    osc.frequency.setValueAtTime(type==='click'?580:380,t);
+    osc.frequency.exponentialRampToValueAtTime(type==='click'?280:440,t+0.04);
+    g.gain.setValueAtTime(0.12,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+    osc.connect(g);g.connect(actx.destination);osc.start(t);osc.stop(t+0.04);
+  }else if(type==='open'||type==='close'){
+    const osc=actx.createOscillator(),g=actx.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(type==='open'?280:520,t);
+    osc.frequency.exponentialRampToValueAtTime(type==='open'?520:280,t+0.08);
+    g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+    osc.connect(g);g.connect(actx.destination);osc.start(t);osc.stop(t+0.08);
+  }else if(type==='sale'){
+    [659.25,987.77].forEach((freq,i)=>{
+      const osc=actx.createOscillator(),g=actx.createGain();
+      osc.type='sine';osc.frequency.value=freq;const st=t+i*0.12;
+      g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(0.22,st+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,st+0.35);
+      osc.connect(g);g.connect(actx.destination);osc.start(st);osc.stop(st+0.35);
+    });
+  }else if(type==='bean'){
+    const noise=actx.createBufferSource(),b=actx.createBuffer(1,actx.sampleRate*0.05,actx.sampleRate);
+    const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    noise.buffer=b;const f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=1800;
+    const g=actx.createGain();g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    noise.connect(f);f.connect(g);g.connect(actx.destination);noise.start(t);
+  }
+}
+function playStep(){
+  if(!actx||audioMuted)return;if(actx.state==='suspended')actx.resume();
+  const t=actx.currentTime;
+  const noise=actx.createBufferSource(),b=actx.createBuffer(1,actx.sampleRate*0.04,actx.sampleRate);
+  const d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  noise.buffer=b;const f=actx.createBiquadFilter();f.type='bandpass';
+  f.frequency.value=380+Math.random()*120;f.Q.value=2.0;
+  const g=actx.createGain();g.gain.setValueAtTime(0.07,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+  noise.connect(f);f.connect(g);g.connect(actx.destination);noise.start(t);
+}
+
+/* ===================== ARRANQUE / GUARD ===================== */
+const $=id=>document.getElementById(id);
+if(typeof THREE==='undefined'){ $('intro').classList.add('hidden'); $('err').classList.remove('hidden'); }
+else { boot(); }
+
+function boot(){
+/* ---------- THREE setup ---------- */
+const canvas=$('world');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,200);
+const hemi=new THREE.HemisphereLight(0x9a865f,0x160d07,0.9); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff0d2,0.9); sun.position.set(8,16,6); scene.add(sun);
+scene.fog=new THREE.Fog(0x9fc0da,12,60);
+
+const COL={grass:0x4f6b34,dirt:0x5a4126,crate:0x8a5f30,plank:0xb07f3c,
+  slab:0x8a8072,post:0x7c5225,roof:0x8b5a34,sack:0xc2aa80,trunk:0x6f4a24,leaf:0x3f6b34,
+  pod:0xd0a83a,pod2:0xc25a3a,beanU:0x9270CE,beanW:0xc07d33,beanO:0x6B5E3C,counter:0x6b4a2a,gold:0xE7BE63};
+
+/* ===================== TEXTURAS PROCEDURALES (pixel-art 16×16) =====================
+   Se dibujan en <canvas> al arrancar: cero assets externos, cero peticiones de red.  */
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+const TEX={};
+/* PRNG con semilla → cada textura se ve igual en cada partida */
+function rnd(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+/* aclara (f>0) u oscurece (f<0) un color hex → string css */
+function tone(hex,f){const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255,t=f>=0?255:0,a=Math.abs(f);
+  return'rgb('+Math.round(r+(t-r)*a)+','+Math.round(g+(t-g)*a)+','+Math.round(b+(t-b)*a)+')';}
+/* ruido pixel a pixel sobre un color base */
+function noise(c,s,hex,r,lo,hi){for(let i=0;i<s;i++)for(let j=0;j<s;j++){
+  c.fillStyle=tone(hex,lo+r()*(hi-lo));c.fillRect(i,j,1,1);}}
+function makeTex(key,seed,draw){
+  const S=16,cv=document.createElement('canvas');cv.width=cv.height=S;
+  const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
+  draw(c,rnd(seed),S);
+  const t=new THREE.CanvasTexture(cv);
+  t.magFilter=THREE.NearestFilter;          // bordes duros: look voxel
+  t.minFilter=THREE.LinearMipmapLinearFilter;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=maxAniso;
+  TEX[key]=t;return t;
+}
+/* texturas con transparencia (sol, luna, salpicaduras): filtrado suave, sin repetir */
+function makeAlphaTex(key,size,draw){
+  const cv=document.createElement('canvas');cv.width=cv.height=size;
+  draw(cv.getContext('2d'),size);
+  const t=new THREE.CanvasTexture(cv);
+  t.minFilter=t.magFilter=THREE.LinearFilter;
+  t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;
+  TEX[key]=t;return t;
+}
+
+/* pasto: mata verde con briznas claras y oscuras */
+makeTex('grass',11,(c,r,s)=>{noise(c,s,COL.grass,r,-0.22,0.16);
+  for(let k=0;k<16;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.grass,r()<0.5?0.30:-0.30);c.fillRect(i,j,1,2);}});
+/* tierra pisada del beneficiadero */
+makeTex('dirt',23,(c,r,s)=>{noise(c,s,COL.dirt,r,-0.25,0.18);
+  for(let k=0;k<7;k++){const i=r()*(s-2)|0,j=r()*s|0;c.fillStyle=tone(COL.dirt,-0.35);c.fillRect(i,j,2,1);}
+  for(let k=0;k<5;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.dirt,0.24);c.fillRect(i,j,1,1);}});
+/* tablas horizontales: base de toda la madera aserrada */
+function planks(c,r,s,hex,rowH){
+  noise(c,s,hex,r,-0.10,0.10);
+  for(let k=0;k<18;k++){const i=r()*(s-4)|0,j=r()*s|0;c.fillStyle=tone(hex,-0.20);c.fillRect(i,j,2+(r()*3|0),1);}
+  c.fillStyle=tone(hex,-0.42);for(let j=rowH-1;j<s;j+=rowH)c.fillRect(0,j,s,1);
+  for(let j=0;j<s;j+=rowH){const i=1+(r()*(s-2)|0);c.fillStyle=tone(hex,-0.38);c.fillRect(i,j,1,rowH-1);}
+}
+makeTex('plank',3,(c,r,s)=>planks(c,r,s,COL.plank,4));
+makeTex('counter',13,(c,r,s)=>planks(c,r,s,COL.counter,5));
+/* cajón de fermentación: tablas + marco reforzado */
+makeTex('crate',5,(c,r,s)=>{planks(c,r,s,COL.crate,4);
+  c.fillStyle=tone(COL.crate,-0.34);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);
+  c.fillStyle=tone(COL.crate,0.18);c.fillRect(1,1,s-2,1);});
+/* poste: veta vertical y cantos oscuros */
+makeTex('post',7,(c,r,s)=>{noise(c,s,COL.post,r,-0.10,0.10);
+  c.globalAlpha=0.55;
+  for(let i=0;i<s;i++){c.fillStyle=tone(COL.post,(i===0||i===s-1)?-0.38:(i<3||i>s-4)?-0.14:0.08);c.fillRect(i,0,1,s);}
+  c.globalAlpha=1;
+  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*(s-4)|0;c.fillStyle=tone(COL.post,-0.24);c.fillRect(i,j,1,2+(r()*3|0));}});
+/* placa de cemento del patio de secado */
+makeTex('slab',9,(c,r,s)=>{noise(c,s,COL.slab,r,-0.12,0.12);
+  c.fillStyle=tone(COL.slab,-0.26);c.fillRect(0,0,s,1);c.fillRect(0,0,1,s);
+  c.fillStyle=tone(COL.slab,0.18);c.fillRect(1,1,s-1,1);c.fillRect(1,1,1,s-1);
+  for(let k=0;k<9;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.slab,-0.28);c.fillRect(i,j,1,1);}});
+/* teja de zinc acanalada de la marquesina */
+makeTex('roof',15,(c,r,s)=>{noise(c,s,COL.roof,r,-0.08,0.08);
+  c.globalAlpha=0.7;
+  for(let i=0;i<s;i++){const p=i%4;c.fillStyle=tone(COL.roof,p===0?-0.32:p===1?0.02:p===2?0.22:0);c.fillRect(i,0,1,s);}
+  c.globalAlpha=1;
+  c.fillStyle=tone(COL.roof,-0.30);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);});
+/* costal de fique: trama cruzada de hilos gruesos */
+makeTex('sack',19,(c,r,s)=>{noise(c,s,COL.sack,r,-0.10,0.10);
+  c.globalAlpha=0.55;
+  for(let j=0;j<s;j++)for(let i=0;i<s;i++){
+    const warp=((i>>1)+(j>>1))&1;                       // urdimbre / trama alternadas
+    const edge=(warp?j:i)&1;                            // canto oscuro de cada hilo
+    c.fillStyle=tone(COL.sack,edge?-0.30:(warp?0.26:0.06));c.fillRect(i,j,1,1);}
+  c.globalAlpha=1;
+  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.sack,-0.34);c.fillRect(i,j,1,1);}});
+/* corteza del cacaotero */
+makeTex('trunk',27,(c,r,s)=>{noise(c,s,COL.trunk,r,-0.14,0.10);
+  for(let k=0;k<16;k++){const i=r()*s|0,j=r()*s|0;
+    c.fillStyle=tone(COL.trunk,r()<0.5?-0.30:0.16);c.fillRect(i,j,1,3+(r()*7|0));}
+  c.fillStyle=tone(COL.trunk,-0.32);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
+/* follaje */
+makeTex('leaf',33,(c,r,s)=>{noise(c,s,COL.leaf,r,-0.26,0.14);
+  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.leaf,-0.42);c.fillRect(i,j,2,1);c.fillRect(i,j+1,1,2);}
+  for(let k=0;k<8;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.leaf,0.30);c.fillRect(i,j,1,2);}});
+/* mazorca: lomos verticales y cáscara rugosa */
+function podTex(key,seed,hex){makeTex(key,seed,(c,r,s)=>{noise(c,s,hex,r,-0.10,0.10);
+  c.globalAlpha=0.75;
+  for(let i=0;i<s;i++){const p=i%5;c.fillStyle=tone(hex,p===0?-0.36:p===1?-0.10:p===2?0.22:p===3?0.04:-0.16);c.fillRect(i,0,1,s);}
+  c.globalAlpha=1;
+  for(let k=0;k<14;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(hex,r()<0.5?-0.26:0.24);c.fillRect(i,j,1,1);}
+  c.fillStyle=tone(hex,-0.30);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);});}
+podTex('pod',41,COL.pod);podTex('pod2',43,COL.pod2);
+/* masa de granos: en grises, para teñirla según el estado de fermentación.
+   Cada grano lleva sombra propia para que la pila se lea grano a grano.  */
+makeTex('beans',17,(c,r,s)=>{
+  c.fillStyle='#6b6b6b';c.fillRect(0,0,s,s);           // hueco entre granos
+  for(let k=0;k<42;k++){
+    const x=r()*s,y=r()*s,rx=1.5+r()*1.0,ry=1.0+r()*0.7,rot=r()*Math.PI,v=214+(r()*41|0);
+    c.fillStyle='#4f4f4f';                              // sombra
+    c.beginPath();c.ellipse(x+0.6,y+0.9,rx,ry,rot,0,Math.PI*2);c.fill();
+    c.fillStyle='rgb('+v+','+v+','+v+')';               // grano
+    c.beginPath();c.ellipse(x,y,rx,ry,rot,0,Math.PI*2);c.fill();}
+  c.globalAlpha=0.5;c.fillStyle='#ffffff';              // brillo suelto
+  for(let k=0;k<10;k++)c.fillRect(r()*s|0,r()*s|0,1,1);
+  c.globalAlpha=1;});
+/* placa dorada de la bodega */
+makeTex('gold',31,(c,r,s)=>{noise(c,s,COL.gold,r,-0.10,0.12);
+  c.fillStyle=tone(COL.gold,-0.42);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);
+  c.fillStyle=tone(COL.gold,0.42);c.fillRect(2,2,s-4,1);c.fillRect(2,2,1,s-4);
+  c.fillStyle=tone(COL.gold,-0.24);c.fillRect(4,4,s-8,s-8);
+  c.fillStyle=tone(COL.gold,0.34);c.fillRect(6,6,s-12,s-12);});
+
+/* nube: blanco con grumos suaves */
+makeTex('cloud',51,(c,r,s)=>{noise(c,s,0xffffff,r,-0.11,0.0);
+  for(let k=0;k<9;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(0xffffff,-0.16);c.fillRect(i,j,2,2);}});
+/* garita meteorológica: persianas de lamas blancas */
+makeTex('louver',53,(c,r,s)=>{const B=0xe9e5db;noise(c,s,B,r,-0.05,0.05);
+  for(let j=0;j<s;j+=3){c.fillStyle=tone(B,-0.34);c.fillRect(0,j,s,1);
+    c.fillStyle=tone(B,0.45);c.fillRect(0,j+1,s,1);}
+  c.fillStyle=tone(B,-0.30);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
+/* metal galvanizado de mástil e instrumentos */
+makeTex('metal',57,(c,r,s)=>{const B=0x9aa3ab;noise(c,s,B,r,-0.12,0.12);
+  c.globalAlpha=0.5;
+  for(let i=0;i<s;i++){c.fillStyle=tone(B,i%3===0?-0.22:i%3===1?0.16:0);c.fillRect(i,0,1,s);}
+  c.globalAlpha=1;
+  c.fillStyle=tone(B,-0.34);for(let j=2;j<s;j+=6)for(let i=2;i<s;i+=6)c.fillRect(i,j,1,1);});
+/* tablero de lecturas: fondo oscuro con renglones ámbar */
+makeTex('screen',59,(c,r,s)=>{const B=0x1b2620;noise(c,s,B,r,-0.10,0.10);
+  c.fillStyle='#CE8B3A';
+  for(let j=3;j<s-2;j+=4)c.fillRect(3,j,3+(r()*8|0),1);
+  c.fillStyle=tone(0xE7BE63,0);c.fillRect(3,3,5,1);
+  c.fillStyle=tone(B,-0.5);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
+
+/* disco solar con halo */
+makeAlphaTex('sun',64,(c,s)=>{const h=s/2,g=c.createRadialGradient(h,h,0,h,h,h);
+  g.addColorStop(0,'rgba(255,253,240,1)');g.addColorStop(0.22,'rgba(255,246,206,1)');
+  g.addColorStop(0.30,'rgba(255,226,150,.62)');g.addColorStop(0.52,'rgba(255,198,104,.20)');
+  g.addColorStop(1,'rgba(255,176,80,0)');
+  c.fillStyle=g;c.fillRect(0,0,s,s);});
+/* luna con mares */
+makeAlphaTex('moon',64,(c,s)=>{const h=s/2,g=c.createRadialGradient(h,h,0,h,h,h);
+  g.addColorStop(0,'rgba(238,242,252,1)');g.addColorStop(0.30,'rgba(214,224,244,1)');
+  g.addColorStop(0.37,'rgba(180,198,232,.38)');g.addColorStop(1,'rgba(150,175,220,0)');
+  c.fillStyle=g;c.fillRect(0,0,s,s);
+  c.fillStyle='rgba(166,181,210,.5)';                 // mares, dentro del disco (r≈9)
+  [[29,29,2.4],[35.5,33,1.8],[31,36.5,1.3]].forEach(([x,y,r])=>{
+    c.beginPath();c.ellipse(x,y,r,r,0,0,Math.PI*2);c.fill();});});
+/* salpicadura: anillo que se abre en el suelo */
+makeAlphaTex('splash',32,(c,s)=>{const h=s/2;
+  for(let i=0;i<5;i++){c.strokeStyle='rgba(198,220,240,'+(0.55-i*0.10)+')';c.lineWidth=1.4;
+    c.beginPath();c.ellipse(h,h,h-3-i*1.6,h-3-i*1.6,0,0,Math.PI*2);c.stroke();}});
+
+/* cielo: un solo degradado que se repinta según hora y clima */
+const skyCv=document.createElement('canvas');skyCv.width=2;skyCv.height=160;
+const skyCtx=skyCv.getContext('2d');
+const skyTexture=new THREE.CanvasTexture(skyCv);
+skyTexture.minFilter=skyTexture.magFilter=THREE.LinearFilter;
+function hexStr(h){return'#'+('000000'+(h>>>0).toString(16)).slice(-6);}
+function lerpHex(a,b,t){t=clamp(t);
+  const r=Math.round(((a>>16)&255)+((((b>>16)&255)-((a>>16)&255))*t)),
+        g=Math.round(((a>>8)&255)+((((b>>8)&255)-((a>>8)&255))*t)),
+        bl=Math.round((a&255)+(((b&255)-(a&255))*t));
+  return(r<<16)|(g<<8)|bl;}
+function paintSky(top,bot){
+  const g=skyCtx.createLinearGradient(0,0,0,160);
+  g.addColorStop(0,tone(top,-0.18));g.addColorStop(0.5,hexStr(top));g.addColorStop(1,hexStr(bot));
+  skyCtx.fillStyle=g;skyCtx.fillRect(0,0,2,160);skyTexture.needsUpdate=true;}
+scene.background=skyTexture;
+
+/* materiales cacheados por (textura, tinte) */
+const box=new THREE.BoxGeometry(1,1,1),MATS={};
+function mat(key,tint){const id=key+'|'+(tint===undefined?'-':tint);
+  return MATS[id]||(MATS[id]=new THREE.MeshLambertMaterial({map:TEX[key],color:tint===undefined?0xffffff:tint}));}
+function cube(x,y,z,key,g,tint){const m=new THREE.Mesh(box,mat(key,tint));
+  m.position.set(x+0.5,y+0.5,z+0.5);(g||scene).add(m);return m;}
+/* pieza libre (sub-bloque) para instrumentos: centro y tamaño en unidades de mundo */
+function part(x,y,z,sx,sy,sz,key,g,tint){const m=new THREE.Mesh(box,mat(key,tint));
+  m.scale.set(sx,sy,sz);m.position.set(x,y,z);(g||world).add(m);return m;}
+/* textura clonada con repetición propia (para superficies grandes) */
+function texRepeat(key,rx,ry){const t=TEX[key].clone();t.needsUpdate=true;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=maxAniso;return t;}
+
+/* ---------- terreno ---------- */
+const GW=26,GD=22; // ancho/fondo (en bloques), centrado en 0
+const world=new THREE.Group(); scene.add(world);
+/* un solo plano con el pasto repetido: mismo aspecto, ~570 draw calls menos */
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(GW,GD),
+  new THREE.MeshLambertMaterial({map:texRepeat('grass',GW,GD)}));
+ground.rotation.x=-Math.PI/2;world.add(ground);
+/* parches de tierra pisada; cada uno un pelo más alto para evitar z-fighting */
+let patchY=0.015;
+function patch(x,z,w,d){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({map:texRepeat('dirt',w,d)}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,patchY,z);patchY+=0.004;world.add(m);return m;}
+patch(0.5,2,3,13);      // camino central
+patch(-4,-1.5,8,6);     // zona del cajón
+patch(5.5,-1,8,7);      // patio de secado
+patch(0.5,5,8,5);       // bodega
+patch(7.5,4.5,4.5,4.5); // estación meteorológica
+
+/* ---------- estaciones ---------- */
+const beans=[]; // granos recolorables
+// Cajón de fermentación (izquierda, z negativa)
+(function(){const bx=-6,bz=-3;
+  // cajón de madera abierto por el frente
+  [[0,0],[1,0],[2,0],[3,0],[0,1],[0,2],[3,1],[3,2]].forEach(([dx,dz])=>{
+    cube(bx+dx,0,bz+dz,'crate',world);cube(bx+dx,1,bz+dz,'plank',world);});
+  [[1,1],[2,1],[1,2],[2,2]].forEach(([dx,dz])=>{beans.push(cube(bx+dx,0,bz+dz,'beans',world,COL.beanW));});
+})();
+// Patio de secado (derecha) con marquesina
+(function(){const px=4,pz=-3;
+  for(let dx=0;dx<3;dx++)for(let dz=0;dz<3;dz++)cube(px+dx,0,pz+dz,'slab',world);
+  [[0,0],[2,0],[0,2],[2,2]].forEach(([dx,dz])=>{cube(px+dx,1,pz+dz,'post',world);cube(px+dx,2,pz+dz,'post',world);});
+  for(let dx=0;dx<3;dx++)for(let dz=0;dz<3;dz++)cube(px+dx,3,pz+dz,'roof',world);
+  [[1,0],[0,1],[1,1],[2,1],[1,2]].forEach(([dx,dz])=>{beans.push(cube(px+dx,1,pz+dz,'beans',world,COL.beanW));});
+})();
+// Bodega (al frente, z positiva)
+let lamp,lampBlock;
+(function(){const cx=-1,cz=5;
+  for(let dx=0;dx<3;dx++){cube(cx+dx,0,cz,'counter',world);cube(cx+dx,1,cz,'plank',world);}
+  // farol de la bodega: se enciende al caer la noche y sirve de referencia para volver
+  lampBlock=cube(cx+1,2,cz,'gold',world);
+  lampBlock.material=lampBlock.material.clone();
+  lamp=new THREE.PointLight(0xffb85c,0,11);lamp.position.set(cx+1.5,2.8,cz+0.5);world.add(lamp);
+  cube(cx,2,cz,'post',world);cube(cx+2,2,cz,'post',world);
+  for(let dx=0;dx<3;dx++){cube(cx+dx,3,cz,'roof',world);cube(cx+dx,3,cz-1,'roof',world);}
+  // costales apilados detrás del mostrador
+  [[0,0],[2,0],[0,1],[2,1]].forEach(([dx,dy])=>cube(cx+dx,dy,cz-1,'sack',world));
+})();
+// Estación meteorológica (derecha, frente al patio): garita, pluviómetro, anemómetro y tablero
+let anemo,veleta;
+(function(){const X=7.5,Z=4.5;
+  part(X,0.08,Z,2.6,0.16,2.6,'slab');                       // plataforma
+  part(X,1.05,Z,0.20,2.10,0.20,'metal');                    // mástil
+  // garita de persianas con su techo
+  part(X,1.62,Z,1.05,0.80,1.05,'louver');
+  part(X,2.06,Z,1.25,0.12,1.25,'metal');
+  // pluviómetro: probeta con boca embudo
+  part(X+1.0,0.62,Z-0.1,0.36,1.08,0.36,'metal');
+  part(X+1.0,1.20,Z-0.1,0.52,0.10,0.52,'metal');
+  // anemómetro: tres copas girando sobre el mástil
+  anemo=new THREE.Group();anemo.position.set(X,2.42,Z);world.add(anemo);
+  for(let i=0;i<3;i++){const a=i*Math.PI*2/3,br=new THREE.Group();
+    part(Math.cos(a)*0.17,0,Math.sin(a)*0.17,0.34,0.05,0.05,'metal',br);
+    part(Math.cos(a)*0.34,0.04,Math.sin(a)*0.34,0.14,0.14,0.14,'metal',br,0xCE8B3A);
+    br.rotation.y=-a;anemo.add(br);}
+  part(X,2.28,Z,0.10,0.34,0.10,'metal');
+  // veleta: flecha que marca la dirección del viento
+  veleta=new THREE.Group();veleta.position.set(X,2.72,Z);world.add(veleta);
+  part(0,0,0,0.62,0.04,0.04,'metal',veleta);
+  part(-0.30,0,0,0.10,0.22,0.22,'metal',veleta,0xE7BE63);
+  part(0.30,0,0,0.06,0.16,0.16,'metal',veleta);
+  // tablero de lecturas, mirando al jugador
+  part(X-1.25,0.68,Z+0.55,0.14,1.36,0.14,'post');
+  part(X-1.25,1.52,Z+0.55,1.12,0.78,0.10,'metal');
+  part(X-1.25,1.52,Z+0.49,0.94,0.60,0.04,'screen');
+})();
+// Árboles de cacao (zona de cosecha)
+function tree(tx,tz){
+  for(let y=0;y<3;y++)cube(tx,y,tz,'trunk',world);
+  cube(tx,3,tz,'leaf',world);cube(tx+1,3,tz,'leaf',world);cube(tx-1,3,tz,'leaf',world);
+  cube(tx,3,tz+1,'leaf',world);cube(tx,3,tz-1,'leaf',world);cube(tx,4,tz,'leaf',world);
+  cube(tx+1,1,tz,(Math.random()<.5?'pod':'pod2'),world);cube(tx-1,2,tz,'pod',world);}
+tree(-9,4);tree(-7,6);tree(-10,1);
+
+/* ---------- sol, luna y estrellas ---------- */
+const SUN_R=110;
+const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.sun,transparent:true,depthWrite:false,fog:false}));
+sunSprite.scale.set(30,30,1);scene.add(sunSprite);
+const moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.moon,transparent:true,depthWrite:false,fog:false}));
+moonSprite.scale.set(19,19,1);scene.add(moonSprite);
+const moonLight=new THREE.DirectionalLight(0x9fb6e0,0);scene.add(moonLight);
+const STARN=420,spos=new Float32Array(STARN*3),sr=rnd(91);
+for(let i=0;i<STARN;i++){const th=sr()*Math.PI*2,ph=Math.acos(sr()*0.97+0.02),R=150;
+  spos[i*3]=R*Math.sin(ph)*Math.cos(th);spos[i*3+1]=Math.abs(R*Math.cos(ph))+5;spos[i*3+2]=R*Math.sin(ph)*Math.sin(th);}
+const sgeo=new THREE.BufferGeometry();sgeo.setAttribute('position',new THREE.BufferAttribute(spos,3));
+const stars=new THREE.Points(sgeo,new THREE.PointsMaterial({color:0xdfe8ff,size:1.2,transparent:true,opacity:0,fog:false}));
+scene.add(stars);
+
+/* ---------- nubes (banco reutilizable: el clima decide cuántas se ven) ---------- */
+const CLOUD_MAX=28,clouds=[];
+const cloudMat=new THREE.MeshLambertMaterial({map:TEX.cloud,fog:false});
+(function(){const cr=rnd(77);
+  for(let i=0;i<CLOUD_MAX;i++){
+    const g=new THREE.Group(),n=3+(cr()*4|0);
+    for(let p=0;p<n;p++){const m=new THREE.Mesh(box,cloudMat);
+      m.scale.set(4+cr()*7,1.4+cr()*1.6,4+cr()*7);
+      m.position.set((cr()-0.5)*9,(cr()-0.5)*1.4,(cr()-0.5)*9);g.add(m);}
+    g.userData={base:30+cr()*12,spd:0.5+cr()*0.7};
+    g.position.set((cr()-0.5)*190,g.userData.base,(cr()-0.5)*190);
+    scene.add(g);clouds.push(g);}
+})();
+
+/* ---------- lluvia: gotas alargadas + salpicaduras en el suelo ---------- */
+const RN=1200,rpos=new Float32Array(RN*6);
+function seedDrop(i,y){const x=(Math.random()-0.5)*34,z=(Math.random()-0.5)*34,L=0.5+Math.random()*0.5;
+  rpos[i*6]=x;rpos[i*6+1]=y;rpos[i*6+2]=z;
+  rpos[i*6+3]=x+0.10;rpos[i*6+4]=y-L;rpos[i*6+5]=z;}   // segundo vértice = cola de la gota
+for(let i=0;i<RN;i++)seedDrop(i,Math.random()*20);
+const rgeo=new THREE.BufferGeometry();rgeo.setAttribute('position',new THREE.BufferAttribute(rpos,3));
+const rain=new THREE.LineSegments(rgeo,new THREE.LineBasicMaterial({color:0xc3d6e8,transparent:true,opacity:0.5,fog:false}));
+rain.visible=false;scene.add(rain);
+const SPN=26,splash=[],splashGeo=new THREE.PlaneGeometry(1,1);
+for(let i=0;i<SPN;i++){
+  const m=new THREE.Mesh(splashGeo,new THREE.MeshBasicMaterial({map:TEX.splash,transparent:true,opacity:0,depthWrite:false,fog:false}));
+  m.rotation.x=-Math.PI/2;m.position.set(0,0.05,0);m.userData.t=Math.random();scene.add(m);splash.push(m);}
+function updateRain(dt){
+  const v=17*dt;
+  for(let i=0;i<RN;i++){rpos[i*6+1]-=v;rpos[i*6+4]-=v;
+    if(rpos[i*6+4]<0)seedDrop(i,19+Math.random()*3);}
+  rgeo.attributes.position.needsUpdate=true;
+  rain.position.set(player.x,0,player.z);     // el chubasco acompaña al jugador
+  for(const m of splash){
+    m.userData.t+=dt*1.9;
+    if(m.userData.t>=1){m.userData.t=0;
+      m.position.set(player.x+(Math.random()-0.5)*17,0.05,player.z+(Math.random()-0.5)*17);}
+    const t=m.userData.t,k=0.22+t*1.2;
+    m.scale.set(k,k,1);m.material.opacity=0.55*(1-t)*rainStrength;}
+}
+
+/* ---------- clima y ciclo del día ---------- */
+const SKY={
+  soleado:{sky:0x8fc2e8,fog:0xbfd8ea,sun:1.05,hemi:0.95,rain:0,clouds:6,cloudCol:0xffffff,cloudY:6},
+  variable:{sky:0x8aa6ba,fog:0x9fb4c4,sun:0.62,hemi:0.72,rain:0.40,clouds:16,cloudCol:0xbcc3c9,cloudY:0},
+  lluvioso:{sky:0x5e6b76,fog:0x6a757e,sun:0.34,hemi:0.56,rain:0.90,clouds:28,cloudCol:0x8b9199,cloudY:-7},
+};
+/* parámetros ambientales que lee la estación meteorológica */
+const WX={
+  soleado:{t:[19,31],hr:[46,88],mm:0,wind:6,wdir:'NE',sunF:1.00,
+    note:'Día despejado: el mejor escenario para secar al sol. Aprovecha las horas de radiación alta del mediodía.'},
+  variable:{t:[18,27],hr:[58,93],mm:6,wind:14,wdir:'E',sunF:0.55,
+    note:'Nubosidad cambiante y chubascos posibles. El sol solo no alcanza: la marquesina te cubre si entra un aguacero.'},
+  lluvioso:{t:[16,22],hr:[80,97],mm:26,wind:11,wdir:'SE',sunF:0.22,
+    note:'Lluvia sostenida y humedad ambiental muy alta. Al sol el grano no baja de humedad: se enmohece.'},
+};
+const WDIR={N:0,NE:-Math.PI/4,E:-Math.PI/2,SE:-Math.PI*3/4,S:Math.PI,SW:Math.PI*3/4,W:Math.PI/2,NW:Math.PI/4};
+const WCOL={soleado:'#E7BE63',variable:'#AD9C84',lluvioso:'#7fa0b8'};
+const WNAME={soleado:'Soleado',variable:'Variable',lluvioso:'Lluvioso'};
+const DAY_SECONDS=420;          // un día completo (24 h) dura 7 minutos reales
+let hour=6.3,curW='soleado',rainStrength=0,mmToday=0;
+const DUSK_TOP=0x2c3a60,DUSK_BOT=0xd9834a,NIGHT_TOP=0x0b1226,NIGHT_BOT=0x1c2846;
+const DAWN_LIGHT=0xffa85c,NOON_LIGHT=0xfff0d2;
+function sunElev(h){return Math.sin((h-6)/12*Math.PI);}   // 6h sale, 12h cenit, 18h se pone
+let lastTop=-1,lastBot=-1;
+function updateSky(){
+  const W=SKY[curW],a=(hour-6)/12*Math.PI;
+  const ex=Math.cos(a),ey=Math.sin(a),ez=-0.42,L=Math.hypot(ex,ey,ez);
+  const dx=ex/L,dy=ey/L,dz=ez/L;
+  // discos de sol y luna, siempre centrados sobre el jugador
+  sunSprite.position.set(player.x+dx*SUN_R,dy*SUN_R,player.z+dz*SUN_R);
+  moonSprite.position.set(player.x-dx*SUN_R,-dy*SUN_R,player.z-dz*SUN_R);
+  sunSprite.visible=dy>-0.10;moonSprite.visible=dy<0.10;
+  sunSprite.material.opacity=clamp((dy+0.10)*4)*(0.25+0.75*WX[curW].sunF);
+  moonSprite.material.opacity=clamp((0.10-dy)*4)*(0.40+0.60*WX[curW].sunF);
+  // la luz sigue al sol: rasante y anaranjada al amanecer, cenital y clara al mediodía
+  sun.position.set(dx*60,Math.max(0.5,dy*60),dz*60);
+  sun.intensity=W.sun*clamp(dy*1.7);
+  sun.color.setHex(lerpHex(DAWN_LIGHT,NOON_LIGHT,clamp(dy/0.38)));
+  moonLight.position.set(-dx*60,Math.max(0.5,-dy*60),-dz*60);
+  moonLight.intensity=0.26*clamp(-dy*1.8);
+  const dayF=clamp(dy*3.2);
+  hemi.intensity=0.26+(W.hemi-0.26)*dayF;
+  hemi.color.setHex(lerpHex(0x2c3c60,0x9a865f,dayF));
+  hemi.groundColor.setHex(lerpHex(0x05070c,0x160d07,dayF));
+  stars.material.opacity=clamp(-dy*2.2)*0.9;
+  const night=1-dayF;                        // el farol de la bodega se enciende de noche
+  lamp.intensity=night*1.15;
+  lampBlock.material.emissive.setHex(lerpHex(0x000000,0x6a4310,night));
+  // cielo y niebla: día → crepúsculo → noche
+  let top,bot;
+  if(dy>=0.22){top=W.sky;bot=W.fog;}
+  else if(dy>=0){const t=dy/0.22;top=lerpHex(DUSK_TOP,W.sky,t);bot=lerpHex(DUSK_BOT,W.fog,t);}
+  else{const t=clamp(-dy/0.16);top=lerpHex(DUSK_TOP,NIGHT_TOP,t);bot=lerpHex(DUSK_BOT,NIGHT_BOT,t);}
+  if(top!==lastTop||bot!==lastBot){lastTop=top;lastBot=bot;paintSky(top,bot);scene.fog.color.setHex(bot);}
+}
+function setWeather(w){
+  curW=w;const W=SKY[w];
+  rainStrength=W.rain;rain.visible=W.rain>0;rain.material.opacity=0.28+0.34*W.rain;
+  splash.forEach(m=>m.material.opacity=0);
+  cloudMat.color.setHex(W.cloudCol);
+  clouds.forEach((g,i)=>{g.visible=i<W.clouds;g.position.y=g.userData.base+W.cloudY;});
+  $('hWi').style.background=WCOL[w];$('hW').textContent=WNAME[w];
+  mmToday=0;lastTop=-1;updateSky();
+}
+function fmtHour(h){const H=Math.floor(h),M=Math.floor((h-H)*60);
+  return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0');}
+/* avance del día: reloj, lluvia acumulada, instrumentos y deriva de nubes */
+function tick(dt){
+  const dh=dt*24/DAY_SECONDS;
+  hour+=dh;if(hour>=24)hour-=24;
+  if(rainStrength>0){mmToday+=WX[curW].mm*dh/24;updateRain(dt);}
+  anemo.rotation.y+=dt*(0.6+WX[curW].wind*0.34);
+  veleta.rotation.y=WDIR[WX[curW].wdir]+Math.sin(performance.now()*0.0006)*0.18;
+  const drift=dt*(0.5+WX[curW].wind/14);
+  for(const g of clouds){if(!g.visible)continue;
+    g.position.x+=g.userData.spd*drift;
+    if(g.position.x-player.x>95)g.position.x-=190;}
+  updateSky();
+  if(actx&&!audioMuted){
+    const t=actx.currentTime;
+    if(rainGain)rainGain.gain.setTargetAtTime(rainStrength*0.14,t,0.2);
+    if(windGain)windGain.gain.setTargetAtTime(0.015+(WX[curW].wind/16)*0.04,t,0.2);
+  }
+}
+/* la textura de granos es gris: se tiñe con el color del estado de fermentación */
+function setBeans(key){const m=mat('beans',COL[key]);beans.forEach(b=>b.material=m);}
+
+/* ---------- colisiones + estaciones ---------- */
+const SOLIDS=[{x0:-6.4,x1:-2.6,z0:-3.4,z1:-0.6},{x0:3.6,x1:7.4,z0:-3.4,z1:0.4},{x0:-1.4,x1:2.4,z0:4.6,z1:6.4},
+  {x0:6.2,x1:8.8,z0:3.3,z1:5.7}];
+function blocked(x,z){for(const s of SOLIDS)if(x>s.x0-0.3&&x<s.x1+0.3&&z>s.z0-0.3&&z<s.z1+0.3)return true;return false;}
+const STATIONS=[
+  {id:'ferment',name:'cajón',x:-4.5,z:-1.2,lbl:'Abrir cajón'},
+  {id:'dry',name:'patio',x:5.5,z:0.3,lbl:'Abrir patio'},
+  {id:'sell',name:'bodega',x:0.5,z:4.0,lbl:'Ir a bodega'},
+  {id:'weather',name:'estación',x:7.5,z:4.5,lbl:'Ver el clima'},
+];
+const INTERACT=3.0;
+
+/* ---------- jugador / cámara ---------- */
+const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
+const SENS={look:0.0040,move:5.1};   // move en unidades por segundo
+function applyCam(){camera.position.set(player.x,1.62,player.z);camera.rotation.set(player.pitch,player.yaw,0,'YXZ');}
+
+/* look-drag en el canvas */
+let lookId=null,lookLast=null;
+canvas.addEventListener('pointerdown',e=>{if(paused||lookId!==null)return;lookId=e.pointerId;lookLast={x:e.clientX,y:e.clientY};});
+canvas.addEventListener('pointermove',e=>{if(e.pointerId!==lookId||!lookLast)return;
+  player.yaw-=(e.clientX-lookLast.x)*SENS.look;
+  player.pitch=Math.max(-1.2,Math.min(1.0,player.pitch-(e.clientY-lookLast.y)*SENS.look));
+  lookLast={x:e.clientX,y:e.clientY};});
+function endLook(e){if(e.pointerId===lookId){lookId=null;lookLast=null;}}
+canvas.addEventListener('pointerup',endLook);canvas.addEventListener('pointercancel',endLook);
+
+/* joystick */
+const joy=$('joy'),knob=$('joyKnob');let joyId=null;const JR=42;
+joy.addEventListener('pointerdown',e=>{joyId=e.pointerId;joy.setPointerCapture(e.pointerId);e.stopPropagation();});
+joy.addEventListener('pointermove',e=>{if(e.pointerId!==joyId)return;e.stopPropagation();
+  const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  let dx=e.clientX-cx,dy=e.clientY-cy;const d=Math.hypot(dx,dy);if(d>JR){dx=dx/d*JR;dy=dy/d*JR;}
+  knob.style.transform='translate('+dx+'px,'+dy+'px)';
+  player.mx=dx/JR;player.my=-dy/JR;});
+function endJoy(e){if(e.pointerId!==joyId)return;joyId=null;knob.style.transform='translate(0,0)';player.mx=0;player.my=0;}
+joy.addEventListener('pointerup',endJoy);joy.addEventListener('pointercancel',endJoy);
+
+/* teclado (escritorio) */
+addEventListener('keydown',e=>{initAudio();const k=e.key.toLowerCase();player.keys[k]=true;if(k==='e')tryInteract();if(k==='escape')closePanel();});
+addEventListener('keyup',e=>{player.keys[e.key.toLowerCase()]=false;});
+addEventListener('click',e=>{initAudio();if(e.target.closest('button,.seg button'))playSFX('click');});
+addEventListener('input',e=>{if(e.target.matches('input[type=range]'))playSFX('slider');});
+
+/* ---------- loop ---------- */
+let paused=true, nearStation=null, lastT=performance.now(), clockAcc=0;
+const fwd=new THREE.Vector3(),right=new THREE.Vector3(),up=new THREE.Vector3(0,1,0);
+function frame(){
+  requestAnimationFrame(frame);
+  const now=performance.now(),dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(!paused){
+    let mx=player.mx,my=player.my;
+    if(player.keys['w'])my=1;if(player.keys['s'])my=-1;if(player.keys['a'])mx=-1;if(player.keys['d'])mx=1;
+    if(mx||my){
+      const isSprinting=player.keys['shift']||player.keys['shiftleft']||player.keys['shiftright'];
+      const spdMult=isSprinting?1.6:1.0;
+      camera.getWorldDirection(fwd);fwd.y=0;fwd.normalize();right.crossVectors(fwd,up).normalize();
+      let nx=player.x+(fwd.x*my+right.x*mx)*SENS.move*spdMult*dt;
+      let nz=player.z+(fwd.z*my+right.z*mx)*SENS.move*spdMult*dt;
+      nx=Math.max(-GW/2+1,Math.min(GW/2-1,nx));nz=Math.max(-GD/2+1,Math.min(GD/2-1,nz));
+      if(!blocked(nx,player.z))player.x=nx;
+      if(!blocked(player.x,nz))player.z=nz;
+      stepTimer+=dt*spdMult;if(stepTimer>0.36){stepTimer=0;playStep();}
+    }
+    applyCam();
+    // estación cercana
+    let best=null,bd=INTERACT;
+    for(const s of STATIONS){const d=Math.hypot(player.x-s.x,player.z-s.z);if(d<bd){bd=d;best=s;}}
+    if(best!==nearStation){nearStation=best;
+      if(best){$('interactLbl').textContent=best.lbl;$('interactBtn').classList.remove('hidden');}
+      else $('interactBtn').classList.add('hidden');}
+  }
+  tick(dt);                                   // el día corre aunque haya un panel abierto
+  clockAcc+=dt;if(clockAcc>0.4){clockAcc=0;$('hClock').textContent=fmtHour(hour);}
+  renderer.render(scene,camera);
+}
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+renderer.setSize(innerWidth,innerHeight);
+frame();
+
+/* ===================== JUEGO / FLUJO ===================== */
+let idx=0,total=0,grades=[];
+const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
+window.enter=function(){initAudio();$('intro').classList.add('hidden');['hud','crosshair','joy','lookHint'].forEach(i=>$(i).classList.remove('hidden'));idx=0;total=0;grades=[];loadLot();paused=false;};
+window.resetGame=function(){$('final').classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
+function loadLot(){
+  const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
+  hour=6.3;                                   // cada lote arranca al amanecer de un nuevo día
+  syncControls();setWeather(lot.weather);setBeans('beanW');
+  $('hClock').textContent=fmtHour(hour);
+  $('hLot').textContent='Lote '+String.fromCharCode(65+idx)+' · Día '+(idx+1);
+  $('hVar').textContent=VARIETIES[lot.variety].name+' · '+lot.kg+'kg · monilia '+Math.round(lot.monilia*100)+'%';
+  $('hWallet').textContent=cop(total);
+  player.x=0;player.z=9;player.yaw=0;player.pitch=-0.05;applyCam();
+  $('dryWeatherNote').textContent=lot.weather==='lluvioso'?'Está lloviendo: el sol directo no seca bien. Marquesina o más días.':lot.weather==='variable'?'Clima variable: chubascos posibles, cuida el secado.':'Día soleado: buen secado al sol.';
+}
+function syncControls(){
+  $('fd').value=dec.fermDays;$('vo').value=dec.volteos;$('dd').value=dec.dryDays;
+  $('fdVal').textContent=dec.fermDays+' d';$('voVal').textContent=dec.volteos;$('ddVal').textContent=dec.dryDays+' d';
+  seg('cajon',dec.cajon);seg('secado',dec.secado);
+}
+function beanPreview(){const eff=dec.fermDays*(0.75+0.25*BOX_HEAT[dec.cajon]);return eff<4.2?'beanU':dec.fermDays>=7?'beanO':'beanW';}
+$('fd').addEventListener('input',e=>{dec.fermDays=+e.target.value;$('fdVal').textContent=dec.fermDays+' d';setBeans(beanPreview());});
+$('vo').addEventListener('input',e=>{dec.volteos=+e.target.value;$('voVal').textContent=dec.volteos;});
+$('dd').addEventListener('input',e=>{dec.dryDays=+e.target.value;$('ddVal').textContent=dec.dryDays+' d';});
+function seg(group,val){[...$(group).children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===val));}
+$('cajon').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.cajon=b.dataset.v;seg('cajon',dec.cajon);setBeans(beanPreview());});
+$('secado').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.secado=b.dataset.v;seg('secado',dec.secado);});
+
+/* ---------- estación meteorológica ---------- */
+function ambient(){
+  const e=sunElev(hour),el=Math.max(0,e),W=WX[curW];
+  return{elev:e,
+    temp:W.t[0]+(W.t[1]-W.t[0])*Math.pow(el,0.70),
+    hr:W.hr[1]-(W.hr[1]-W.hr[0])*Math.pow(el,0.85),
+    rad:el*W.sunF};
+}
+function fase(h){return h<5.5?'noche cerrada':h<7.5?'amanecer':h<11?'mañana':h<13.5?'mediodía'
+  :h<16.5?'tarde':h<18.5?'atardecer':'noche';}
+/* días teóricos para bajar de 55% a 7% con la constante de secado de este clima */
+function daysTo7(method){
+  const eq=DRY_EQ[method],k=DRY_K[method][curW];
+  return Math.log((K.START_MOISTURE-eq)/(K.TARGET_MOISTURE-eq))/k;
+}
+function sunArc(){
+  const VW=300,VH=58,cx=150,cy=48,R=118,RY=38,t=(hour-6)/12,tc=clamp(t);
+  const px=cx-R*Math.cos(Math.PI*tc),py=cy-RY*Math.sin(Math.PI*tc),night=(t<0||t>1);
+  let s='<svg class="wx-arc" viewBox="0 0 '+VW+' '+VH+'">';
+  s+='<path d="M '+(cx-R)+' '+cy+' A '+R+' '+RY+' 0 0 1 '+(cx+R)+' '+cy+'" fill="none" stroke="rgba(239,230,213,.16)" stroke-dasharray="3 4"/>';
+  s+='<line x1="'+(cx-R-8)+'" y1="'+cy+'" x2="'+(cx+R+8)+'" y2="'+cy+'" stroke="rgba(239,230,213,.28)"/>';
+  [[cx-R,'6h'],[cx,'12h'],[cx+R,'18h']].forEach(([x,l])=>{
+    s+='<text class="radar-axis-label" x="'+x+'" y="'+(cy+13)+'" text-anchor="middle">'+l+'</text>';});
+  if(night)s+='<circle cx="'+(cx+R*(t>1?1:-1))+'" cy="'+cy+'" r="5" fill="#7E7059"/>';
+  else s+='<circle cx="'+px+'" cy="'+py+'" r="13" fill="#E7BE63" opacity=".18"/>'+
+          '<circle cx="'+px+'" cy="'+py+'" r="6.5" fill="#E7BE63"/>';
+  return s+'</svg>';
+}
+function renderWeather(){
+  const A=ambient(),W=WX[curW];
+  $('wxSub').textContent=WNAME[curW]+' · '+fase(hour)+' · Charalá, Santander';
+  $('wxGrid').innerHTML=[
+    ['Hora',fmtHour(hour),''],['Temperatura',A.temp.toFixed(1),'°C'],['Humedad rel.',Math.round(A.hr),'%'],
+    ['Radiación',Math.round(A.rad*100),'%'],['Viento',W.wind,'km/h '+W.wdir],['Lluvia hoy',mmToday.toFixed(1),'mm'],
+  ].map(([k,v,u])=>'<div class="wx-cell"><small>'+k+'</small><b>'+v+'<i>'+u+'</i></b></div>').join('');
+  $('wxArc').innerHTML=sunArc();
+  $('wxDry').innerHTML=[['sol','Sol lento'],['marquesina','Marquesina'],['artificial','Artificial']]
+    .map(([m,nm])=>'<div class="wx-row'+(dec.secado===m?' on':'')+'"><span class="nm">'+nm+'</span>'+
+      '<span class="kk">k '+DRY_K[m][curW].toFixed(2)+'</span>'+
+      '<span class="dd">'+daysTo7(m).toFixed(1)+' d</span></div>').join('');
+  $('wxNote').textContent=W.note;
+}
+
+function tryInteract(){if(paused||!nearStation)return;
+  if(nearStation.id==='ferment')openPanel('panelFerment');
+  else if(nearStation.id==='dry')openPanel('panelDry');
+  else if(nearStation.id==='sell')openPanel('panelSell');
+  else if(nearStation.id==='weather')openPanel('panelWeather');}
+$('interactBtn').addEventListener('click',tryInteract);
+let wxTimer=null;
+function openPanel(id){initAudio();playSFX('open');paused=true;$('interactBtn').classList.add('hidden');
+  ['joy','lookHint','crosshair'].forEach(i=>$(i).classList.add('hidden'));
+  if(id==='panelWeather'){renderWeather();wxTimer=setInterval(renderWeather,500);}
+  $(id).classList.remove('hidden');}
+window.closePanel=function(){playSFX('close');
+  if(wxTimer){clearInterval(wxTimer);wxTimer=null;}
+  ['panelFerment','panelDry','panelSell','panelWeather'].forEach(i=>$(i).classList.add('hidden'));
+  ['joy','lookHint','crosshair'].forEach(i=>$(i).classList.remove('hidden'));paused=false;};
+
+window.doProcess=function(){
+  playSFX('sale');
+  $('panelSell').classList.add('hidden');
+  const r=evaluate(LOTS[idx],dec);total+=r.revenue;grades.push(r.grade);
+  $('hWallet').textContent=cop(total);
+  $('rGrade').textContent=r.grade;$('rGrade').style.color=r.grade==='Fino de aroma'?'var(--gold)':r.grade==='Pasilla / rechazo'?'var(--danger)':'var(--pulp)';
+  $('rSub').textContent=r.gsub;$('rPrice').textContent=cop(r.priceKg);
+  $('rDetail').textContent=r.dryKg.toFixed(1)+' kg seco · humedad '+r.finalMoisture.toFixed(1)+'% · '+cop(r.revenue);
+  drawRadar(r.profile,$('rRadar'));
+  $('rWhy').innerHTML=r.why.map(([c,t])=>'<div class="why-item"><span class="dot" style="background:'+c+'"></span><span>'+t+'</span></div>').join('');
+  $('rNext').textContent=idx>=LOTS.length-1?'Ver balance':'Siguiente lote';
+  $('panelResult').classList.remove('hidden');
+};
+window.nextLot=function(){$('panelResult').classList.add('hidden');idx++;
+  if(idx>=LOTS.length){renderFinal();}
+  else{loadLot();['joy','lookHint','crosshair'].forEach(i=>$(i).classList.remove('hidden'));paused=false;}};
+function renderFinal(){
+  paused=true;['hud','joy','lookHint','crosshair','interactBtn'].forEach(i=>$(i).classList.add('hidden'));
+  $('fTotal').textContent=cop(total);
+  const count={};grades.forEach(g=>count[g]=(count[g]||0)+1);
+  $('fTally').innerHTML=Object.entries(count).map(([k,v])=>'<span>'+v+'× '+k+'</span>').join('');
+  const fino=count['Fino de aroma']||0,rech=count['Pasilla / rechazo']||0;
+  $('fVerdict').textContent=fino>=3?'Manejo de maestro: convertiste la postcosecha en valor.':rech>=2?'Varios lotes se perdieron en postcosecha. Buena materia prima, decisiones que la desperdiciaron.':'Campaña sólida. Cada grado que subes en calidad se paga varias veces en el precio.';
+  $('final').classList.remove('hidden');
+}
+function drawRadar(profile,host){
+  const keys=Object.keys(profile),N=keys.length,R=82,cx=130,cy=100;
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/N;return[cx+Math.cos(a)*r,cy+Math.sin(a)*r];};
+  let s='<svg class="radar" viewBox="0 0 260 200">';
+  [0.25,0.5,0.75,1].forEach(f=>{s+='<polygon points="'+keys.map((_,i)=>pt(i,R*f).join(',')).join(' ')+'" fill="none" stroke="rgba(239,230,213,.12)"/>';});
+  keys.forEach((_,i)=>{const[x,y]=pt(i,R);s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="rgba(239,230,213,.06)"/>';});
+  s+='<polygon points="'+keys.map((k,i)=>pt(i,R*clamp(profile[k],0.02,1)).join(',')).join(' ')+'" fill="rgba(206,139,58,.22)" stroke="#CE8B3A" stroke-width="2"/>';
+  keys.forEach((k,i)=>{const[x,y]=pt(i,R+15);const an=Math.abs(x-cx)<8?'middle':x<cx?'end':'start';s+='<text class="radar-axis-label" x="'+x+'" y="'+(y+3)+'" text-anchor="'+an+'">'+k+'</text>';});
+  host.innerHTML=s+'</svg>';
+}
+} /* fin boot */
+</script>
+</body>
+</html>
