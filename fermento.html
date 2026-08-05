@@ -441,8 +441,10 @@ window.enter=function(){
   if(typeof initAudio==='function')initAudio();
   const intro=$('intro');if(intro)intro.classList.add('hidden');
   ['hud','compass','crosshair','joy','lookHint'].forEach(i=>{const el=$(i);if(el)el.classList.remove('hidden');});
-  if(typeof loadLot==='function')loadLot();
-  paused=false;
+  // loadLot() y paused viven dentro de boot(); startGame es el puente que boot() publica.
+  // Si el motor aún no terminó de arrancar, dejamos la intención marcada.
+  if(typeof window.startGame==='function')window.startGame();
+  else window.__wantStart=true;
 };
 
 let appStarted=false;
@@ -838,6 +840,9 @@ let anemo,veleta;
   part(X-1.25,1.52,Z+0.49,0.94,0.60,0.04,'screen');
 })();
 // Cacaoteros realistas (Theobroma cacao - caulifloria)
+/* posiciones de troncos para colisión: debe declararse ANTES de plantar el cacaotal,
+   porque cacaoTree() hace TREES.push() al construir cada árbol */
+const TREES=[];
 function cacaoTree(tx,tz,seed){
   const r=rnd(seed);
   const trunkMat=mat('trunk'), leafMat=mat('leaf');
@@ -1049,7 +1054,7 @@ function tick(dt){
 function setBeans(key){const m=mat('beans',COL[key]);beans.forEach(b=>b.material=m);}
 
 /* ---------- colisiones físicas precisas (estructuras + 25 cacaoteros + perro) ---------- */
-const TREES=[];
+/* TREES se declara arriba, junto a cacaoTree() */
 const SOLIDS=[
   {x0:-6.1,x1:-2.9,z0:-2.1,z1:-0.3}, // Cajón de fermentación
   {x0:2.4,x1:8.6,z0:-2.8,z1:3.4},   // Patio de secado y marquesina
@@ -1460,6 +1465,11 @@ function drawRadar(profile,host){
   keys.forEach((k,i)=>{const[x,y]=pt(i,R+15);const an=Math.abs(x-cx)<8?'middle':x<cx?'end':'start';s+='<text class="radar-axis-label" x="'+x+'" y="'+(y+3)+'" text-anchor="'+an+'">'+k+'</text>';});
   host.innerHTML=s+'</svg>';
 }
+
+/* Puente de arranque: loadLot() y paused son locales de boot(), así que window.enter()
+   —definido en el ámbito global— no puede alcanzarlos. Los exponemos aquí. */
+window.startGame=function(){loadLot();paused=false;};
+if(window.__wantStart){window.__wantStart=false;window.startGame();}
 } /* fin boot */
 </script>
 </body>
