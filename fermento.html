@@ -652,52 +652,66 @@ function part(x,y,z,sx,sy,sz,key,g,tint){const m=new THREE.Mesh(box,mat(key,tint
 function texRepeat(key,rx,ry){const t=TEX[key].clone();t.needsUpdate=true;
   t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=maxAniso;return t;}
 
-/* ---------- terreno ---------- */
-const GW=26,GD=22; // ancho/fondo (en bloques), centrado en 0
+/* ---------- terreno expandido (finca cacaotera 52×44) ---------- */
+const GW=52,GD=44; // finca ampliada
 const world=new THREE.Group(); scene.add(world);
-/* un solo plano con el pasto repetido: mismo aspecto, ~570 draw calls menos */
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(GW,GD),
   new THREE.MeshLambertMaterial({map:texRepeat('grass',GW,GD)}));
 ground.rotation.x=-Math.PI/2;world.add(ground);
-/* parches de tierra pisada; cada uno un pelo más alto para evitar z-fighting */
 let patchY=0.015;
 function patch(x,z,w,d){
   const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({map:texRepeat('dirt',w,d)}));
   m.rotation.x=-Math.PI/2;m.position.set(x,patchY,z);patchY+=0.004;world.add(m);return m;}
-patch(0.5,2,3,13);      // camino central
-patch(-4,-1.5,8,6);     // zona del cajón
+patch(0.5,2,3.5,24);      // camino central ampliado
+patch(-4.5,-1.5,8,6);     // zona del cajón
 patch(5.5,-1,8,7);      // patio de secado
 patch(0.5,5,8,5);       // bodega
 patch(7.5,4.5,4.5,4.5); // estación meteorológica
+patch(-14,2,20,24);     // gran plantación de cacao (cacaotal)
 
-/* ---------- estaciones ---------- */
-const beans=[]; // granos recolorables
-// Cajón de fermentación (izquierda, z negativa)
-(function(){const bx=-6,bz=-3;
-  // cajón de madera abierto por el frente
-  [[0,0],[1,0],[2,0],[3,0],[0,1],[0,2],[3,1],[3,2]].forEach(([dx,dz])=>{
-    cube(bx+dx,0,bz+dz,'crate',world);cube(bx+dx,1,bz+dz,'plank',world);});
-  [[1,1],[2,1],[1,2],[2,2]].forEach(([dx,dz])=>{beans.push(cube(bx+dx,0,bz+dz,'beans',world,COL.beanW));});
+/* ---------- estaciones 3D realistas ---------- */
+const beans=[];
+// Cajón de fermentación (Caja de madera real de postcosecha)
+(function(){const bx=-4.5,bz=-1.2;
+  part(bx,0.45,bz,3.2,0.9,1.8,'crate'); // tina de madera reforzada
+  part(bx,0.45,bz,2.9,0.86,1.5,'plank',world,0x332211);
+  const bMesh=part(bx,0.52,bz,2.8,0.45,1.4,'beans',world,COL.beanW);
+  beans.push(bMesh);
+  // remo/pala de madera para remoción
+  part(bx+1.4,0.8,bz+0.8,0.08,1.6,0.08,'post');
+  part(bx+1.4,0.2,bz+0.8,0.22,0.4,0.04,'plank');
 })();
-// Patio de secado (derecha) con marquesina
-(function(){const px=4,pz=-3;
-  for(let dx=0;dx<3;dx++)for(let dz=0;dz<3;dz++)cube(px+dx,0,pz+dz,'slab',world);
-  [[0,0],[2,0],[0,2],[2,2]].forEach(([dx,dz])=>{cube(px+dx,1,pz+dz,'post',world);cube(px+dx,2,pz+dz,'post',world);});
-  for(let dx=0;dx<3;dx++)for(let dz=0;dz<3;dz++)cube(px+dx,3,pz+dz,'roof',world);
-  [[1,0],[0,1],[1,1],[2,1],[1,2]].forEach(([dx,dz])=>{beans.push(cube(px+dx,1,pz+dz,'beans',world,COL.beanW));});
+// Patio de secado (Camilla con bordes y marquesina acanalada)
+(function(){const px=5.5,pz=0.3;
+  part(px,0.12,pz,6.2,0.24,6.2,'slab'); // losa de secado
+  part(px,0.28,pz,5.6,0.08,5.6,'plank');
+  const bMesh=part(px,0.32,pz,5.2,0.04,5.2,'beans',world,COL.beanW);
+  beans.push(bMesh);
+  [[-2.6,-2.6],[2.6,-2.6],[-2.6,2.6],[2.6,2.6]].forEach(([dx,dz])=>{
+    const postMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,2.8,10),mat('post'));
+    postMesh.position.set(px+dx,1.4,pz+dz);world.add(postMesh);
+  });
+  const roofMesh=part(px,2.9,pz,6.6,0.16,6.6,'roof');
+  roofMesh.rotation.x=0.08;
+  part(px+2.5,0.7,pz-1.2,0.06,1.4,0.06,'post'); // rastrillo de madera
 })();
-// Bodega (al frente, z positiva)
+// Bodega de acopio (Mosaico de mostrador, báscula y sacos)
 let lamp,lampBlock;
-(function(){const cx=-1,cz=5;
-  for(let dx=0;dx<3;dx++){cube(cx+dx,0,cz,'counter',world);cube(cx+dx,1,cz,'plank',world);}
-  // farol de la bodega: se enciende al caer la noche y sirve de referencia para volver
-  lampBlock=cube(cx+1,2,cz,'gold',world);
-  lampBlock.material=lampBlock.material.clone();
-  lamp=new THREE.PointLight(0xffb85c,0,11);lamp.position.set(cx+1.5,2.8,cz+0.5);world.add(lamp);
-  cube(cx,2,cz,'post',world);cube(cx+2,2,cz,'post',world);
-  for(let dx=0;dx<3;dx++){cube(cx+dx,3,cz,'roof',world);cube(cx+dx,3,cz-1,'roof',world);}
-  // costales apilados detrás del mostrador
-  [[0,0],[2,0],[0,1],[2,1]].forEach(([dx,dy])=>cube(cx+dx,dy,cz-1,'sack',world));
+(function(){const cx=0.5,cz=4.0;
+  part(cx,0.45,cz,3.6,0.9,1.2,'counter');
+  part(cx-1.0,0.98,cz,0.6,0.12,0.6,'metal'); // báscula de pesaje
+  part(cx-1.0,1.25,cz,0.08,0.45,0.08,'metal');
+  part(cx-1.0,1.40,cz,0.4,0.15,0.06,'screen');
+  const sackGeo=new THREE.DodecahedronGeometry(0.52,1);
+  sackGeo.scale(0.9,1.3,0.9);
+  [[-1.1,0.5,-1.2],[0,0.5,-1.2],[1.1,0.5,-1.2],[-0.5,1.2,-1.2],[0.5,1.2,-1.2]].forEach(([dx,dy,dz])=>{
+    const sMesh=new THREE.Mesh(sackGeo,mat('sack'));
+    sMesh.position.set(cx+dx,dy,cz+dz);world.add(sMesh);
+  });
+  part(cx,2.7,cz-0.5,4.2,0.15,3.2,'roof');
+  lampBlock=part(cx+1.2,2.2,cz,0.24,0.35,0.24,'gold');
+  lamp=new THREE.PointLight(0xffb85c,0,12);
+  lamp.position.set(cx+1.2,2.0,cz);world.add(lamp);
 })();
 // Estación meteorológica (derecha, frente al patio): garita, pluviómetro, anemómetro y tablero
 let anemo,veleta;
@@ -727,28 +741,56 @@ let anemo,veleta;
   part(X-1.25,1.52,Z+0.55,1.12,0.78,0.10,'metal');
   part(X-1.25,1.52,Z+0.49,0.94,0.60,0.04,'screen');
 })();
-// Árboles de cacao (zona de cosecha orgánica)
-function tree(tx,tz){
-  const trunkMat=mat('trunk');
-  const trunkGeo=new THREE.CylinderGeometry(0.22,0.36,3.2,12);
-  const trunkMesh=new THREE.Mesh(trunkGeo,trunkMat);
-  trunkMesh.position.set(tx+0.5,1.6,tz+0.5);world.add(trunkMesh);
+// Cacaoteros realistas (Theobroma cacao - caulifloria)
+function cacaoTree(tx,tz,seed){
+  const r=rnd(seed);
+  const trunkMat=mat('trunk'), leafMat=mat('leaf');
+  const pMat1=mat('pod'), pMat2=mat('pod2');
 
-  const leafMat=mat('leaf');
-  [
-    [0.5,3.2,0.5,1.5],[0.0,3.0,0.5,1.2],[1.0,3.0,0.5,1.2],
-    [0.5,3.0,0.0,1.2],[0.5,3.0,1.0,1.2],[0.5,3.9,0.5,1.1]
-  ].forEach(([dx,dy,dz,rad])=>{
+  const tH=2.4+r()*0.5;
+  const trunkMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.32,tH,10),trunkMat);
+  trunkMesh.position.set(tx,tH/2,tz);
+  trunkMesh.rotation.z=(r()-0.5)*0.15;
+  world.add(trunkMesh);
+
+  // Horqueta (3 ramas principales a 1.6m)
+  for(let i=0;i<3;i++){
+    const a=i*Math.PI*2/3+r()*0.4;
+    const bMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.16,1.8,8),trunkMat);
+    bMesh.position.set(tx+Math.cos(a)*0.5,tH*0.75+0.3,tz+Math.sin(a)*0.5);
+    bMesh.rotation.z=0.6; bMesh.rotation.y=a;
+    world.add(bMesh);
+  }
+
+  // Copas de follaje
+  const cY=tH+0.5;
+  [[0,cY,0,1.8],[-0.9,cY-0.2,0.6,1.4],[0.9,cY-0.2,-0.6,1.4],[0.6,cY-0.2,0.9,1.3],[-0.6,cY-0.2,-0.9,1.3],[0,cY+0.6,0,1.2]].forEach(([dx,dy,dz,rad])=>{
     const lMesh=new THREE.Mesh(new THREE.DodecahedronGeometry(rad,1),leafMat);
     lMesh.position.set(tx+dx,dy,tz+dz);world.add(lMesh);
   });
 
-  const pMat1=mat('pod'), pMat2=mat('pod2');
-  const podGeo=new THREE.ConeGeometry(0.16,0.5,8);
-  const pod1=new THREE.Mesh(podGeo,pMat1);pod1.rotation.z=Math.PI*0.85;pod1.position.set(tx+0.78,1.4,tz+0.5);world.add(pod1);
-  const pod2=new THREE.Mesh(podGeo,pMat2);pod2.rotation.z=-Math.PI*0.85;pod2.position.set(tx+0.22,2.0,tz+0.5);world.add(pod2);
+  // Mazorcas de cacao creciendo directamente en el tronco (Caulifloria)
+  const podN=3+(r()*4|0);
+  const podGeo=new THREE.SphereGeometry(0.18,12,12);
+  podGeo.scale(0.8,2.2,0.8);
+  for(let k=0;k<podN;k++){
+    const pMat=r()<0.5?pMat1:pMat2;
+    const pMesh=new THREE.Mesh(podGeo,pMat);
+    const hFrac=0.25+r()*0.5;
+    const ang=r()*Math.PI*2;
+    pMesh.position.set(tx+Math.cos(ang)*0.26,tH*hFrac,tz+Math.sin(ang)*0.26);
+    pMesh.rotation.z=0.3+(r()-0.5)*0.4;
+    world.add(pMesh);
+  }
 }
-tree(-9,4);tree(-7,6);tree(-10,1);
+// Plantación de 25 cacaoteros distribuidos en el cacaotal
+for(let r=0;r<5;r++){
+  for(let c=0;c<5;c++){
+    const tx=-21+c*4.2+(Math.sin(r*2+c)*0.8);
+    const tz=-12+r*4.8+(Math.cos(c*2+r)*0.8);
+    cacaoTree(tx,tz,100+r*10+c);
+  }
+}
 
 /* ---------- sol, luna y estrellas ---------- */
 const SUN_R=110;
