@@ -1059,8 +1059,8 @@ const SOLIDS=[
   {x0:-6.1,x1:-2.9,z0:-2.1,z1:-0.3}, // Cajón de fermentación
   {x0:2.4,x1:8.6,z0:-2.8,z1:3.4},   // Patio de secado y marquesina
   {x0:-1.4,x1:2.4,z0:2.8,z1:5.2},   // Bodega de acopio
-  {x0:6.1,x1:8.9,z0:3.1,z1:5.9},   // Estación meteorológica
-  {x0:1.9,x1:2.9,z0:2.7,z1:3.7}    // Perro guardián
+  {x0:6.1,x1:8.9,z0:3.1,z1:5.9}    // Estación meteorológica
+  // (el perro se movía pero su caja se quedaba fija aquí: era un muro invisible)
 ];
 function blocked(x,z){
   if(Math.abs(x)>GW/2-1.2||Math.abs(z)>GD/2-1.2)return true;
@@ -1095,18 +1095,31 @@ STATIONS.forEach(s=>{
 /* ---------- fauna de finca (pájaros, mariposas y perro guardián) ---------- */
 // 1. Bandada de pájaros en el cielo
 const birds=[];
-const birdWingGeo=new THREE.PlaneGeometry(0.35,0.18);
+const birdWingGeo=new THREE.PlaneGeometry(0.34,0.17);
+const birdBodyMat=new THREE.MeshLambertMaterial({color:0x3a3028});
+const birdWingMat=new THREE.MeshLambertMaterial({color:0x221a14,side:THREE.DoubleSide});
 for(let i=0;i<6;i++){
-  const bGroup=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.4,6),new THREE.MeshLambertMaterial({color:0x3a3028}));
-  body.rotation.x=Math.PI/2;bGroup.add(body);
-  const lWing=new THREE.Mesh(birdWingGeo,new THREE.MeshLambertMaterial({color:0x221a14,side:THREE.DoubleSide}));
-  lWing.position.set(-0.18,0,0);bGroup.add(lWing);
-  const rWing=new THREE.Mesh(birdWingGeo,new THREE.MeshLambertMaterial({color:0x221a14,side:THREE.DoubleSide}));
-  rWing.position.set(0.18,0,0);bGroup.add(rWing);
+  const bGroup=new THREE.Group();   // posición y rumbo
+  const tilt=new THREE.Group();     // alabeo y cabeceo, separado del rumbo
+  bGroup.add(tilt);
+  const body=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.4,6),birdBodyMat);
+  body.rotation.x=Math.PI/2;        // el cono apunta a +Z, el sentido de vuelo
+  tilt.add(body);
+  /* Cada ala cuelga de un pivote sobre el lomo: el pivote hace el aleteo y el
+     plano va TUMBADO en horizontal. Sin el rotation.x el plano queda vertical,
+     de canto al avance, y el pájaro se lee como si volara de costado. */
+  const mkWing=s=>{
+    const pivot=new THREE.Group();
+    const w=new THREE.Mesh(birdWingGeo,birdWingMat);
+    w.rotation.x=-Math.PI/2;
+    w.position.set(s*0.19,0,0);
+    pivot.add(w);tilt.add(pivot);
+    return pivot;
+  };
+  const lWing=mkWing(-1),rWing=mkWing(1);
   bGroup.position.set(-8+i*3,18+i*0.5,-4+i*2);
   world.add(bGroup);
-  birds.push({group:bGroup,lWing,rWing,idx:i});
+  birds.push({group:bGroup,tilt,lWing,rWing,idx:i});
 }
 
 // 2. Mariposas revoloteando entre los cacaoteros
@@ -1126,15 +1139,37 @@ for(let i=0;i<12;i++){
   butterflies.push(bfGroup);
 }
 
-// 3. Perro guardián de la finca en la bodega
+// 3. Perro guardián de la finca: puesto de vigilancia junto a la bodega
+const DOG_POST=[4.0,7.2];                    // fuera de las cajas de colisión de las estaciones
+/* Ronda alrededor del beneficiadero. Cada tramo se validó en línea recta contra
+   blocked(): si un tramo cruzara un edificio o el cacaotal, el perro se clavaría
+   contra la pared en vez de rodearla (no hay pathfinding, solo dirección directa). */
+const DOG_WPS=[[4.0,7.2],[10.4,7.2],[10.4,-5.4],[-2.0,-5.4],[-2.0,7.2]];
 const dogGroup=new THREE.Group();
-dogGroup.position.set(2.4,getGroundY(2.4,3.2),3.2);
+dogGroup.position.set(DOG_POST[0],getGroundY(DOG_POST[0],DOG_POST[1]),DOG_POST[1]);
 const dogMat=new THREE.MeshLambertMaterial({color:0x8a5a2e});
-const dogBody=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.38,0.7),dogMat);dogBody.position.y=0.25;dogGroup.add(dogBody);
-const dogHead=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.35),dogMat);dogHead.position.set(0,0.48,0.32);dogGroup.add(dogHead);
-const dogTail=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.28,0.08),dogMat);dogTail.position.set(0,0.4,-0.36);dogTail.rotation.x=-0.6;dogGroup.add(dogTail);
+const dogDark=new THREE.MeshLambertMaterial({color:0x5c3a1c});
+const dogBodyPivot=new THREE.Group();dogGroup.add(dogBodyPivot);   // se inclina al sentarse
+const dogBody=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.34,0.66),dogMat);dogBody.position.y=0.40;dogBodyPivot.add(dogBody);
+// cabeza con pivote propio: gira para escanear el terreno sin mover el cuerpo
+const dogHeadPivot=new THREE.Group();dogHeadPivot.position.set(0,0.50,0.30);dogBodyPivot.add(dogHeadPivot);
+const dogHead=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.30),dogMat);dogHead.position.set(0,0.12,0.06);dogHeadPivot.add(dogHead);
+const dogSnout=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.11,0.15),dogDark);dogSnout.position.set(0,0.07,0.26);dogHeadPivot.add(dogSnout);
+[-1,1].forEach(s=>{const ear=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.13,0.05),dogDark);
+  ear.position.set(s*0.10,0.30,0.02);dogHeadPivot.add(ear);});
+// cola con pivote en la grupa para que el meneo pivote desde la base
+const dogTailPivot=new THREE.Group();dogTailPivot.position.set(0,0.50,-0.33);dogBodyPivot.add(dogTailPivot);
+dogTailPivot.rotation.x=-0.6;
+const dogTail=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.26,0.07),dogMat);dogTail.position.y=0.13;dogTailPivot.add(dogTail);
+// cuatro patas colgando de sus caderas (antes el perro era una caja flotante)
+const dogLegs=[];
+[[-0.14,0.22],[0.14,0.22],[-0.14,-0.22],[0.14,-0.22]].forEach(([lx,lz])=>{
+  const hip=new THREE.Group();hip.position.set(lx,0.24,lz);
+  const leg=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.24,0.09),dogDark);
+  leg.position.y=-0.12;hip.add(leg);dogBodyPivot.add(hip);dogLegs.push(hip);
+});
 world.add(dogGroup);
-let lastBarkTime=0;
+let lastBarkTime=0,dogState='guard',dogStateT=0,dogWp=0,dogYaw=0,dogGait=0,dogSit=0,dogStuck=0;
 
 /* ---------- jugador / cámara / brazos de granjero 3D (Viewmodel 1ra persona) ---------- */
 let playerGender='m';
@@ -1272,16 +1307,22 @@ function frame(){
     const rad=19+Math.sin(a*0.4)*5;
     const climb=Math.sin(a*2)*2.5;
     b.group.position.set(-6+Math.cos(a)*rad,17+climb,Math.sin(a)*rad);
-    b.group.rotation.y=-a+Math.PI/2;
-    const flapRate=climb>0?0.016:0.006; // aleteo rápido al subir, planeo suave al bajar
-    b.lWing.rotation.z=Math.sin(now*flapRate+i)*0.5;
-    b.rWing.rotation.z=-Math.sin(now*flapRate+i)*0.5;
+    /* La velocidad tangencial del círculo es (-sin a, cos a); el eje +Z local
+       apunta a (sin y, cos y), así que el rumbo correcto es y=-a. El +Math.PI/2
+       que había antes lo desviaba 90° y los pájaros avanzaban de costado. */
+    b.group.rotation.y=-a;
+    b.tilt.rotation.z=0.30;                  // alabeo hacia el interior de la curva
+    b.tilt.rotation.x=-Math.cos(a*2)*0.20;   // morro arriba al subir, abajo al planear
+    const flapRate=climb>0?0.016:0.006;      // aleteo rápido al subir, planeo suave al bajar
+    const flap=Math.sin(now*flapRate+i)*0.5;
+    b.lWing.rotation.z=flap;
+    b.rWing.rotation.z=-flap;
   });
 
   // 2. Mariposas con IA de posado en árboles (Botanical Landing AI)
   const isSunny=WX[curW].rain===0;
   butterflies.forEach((bf,i)=>{
-    bf.visible=isSunny&&sunSprite.position.y>player.z-20;
+    bf.visible=isSunny&&sunSprite.position.y>0;   // solo de día (antes comparaba una Y con una Z)
     if(!bf.visible)return;
     const t=now*0.0016+i*1.5;
     const isLanding=Math.sin(t*0.2)>0.6; // posado periódico en hojas
@@ -1298,36 +1339,96 @@ function frame(){
     }
   });
 
-  // 3. IA de Patrulla y Compañía del Perro de Finca (Dog Patrol & Companion AI)
-  const distToDog=Math.hypot(player.x-dogGroup.position.x,player.z-dogGroup.position.z);
-  dogTail.rotation.y=Math.sin(now*(distToDog<4.0?0.025:0.012))*0.45;
-
-  if(distToDog<4.5){
-    // Modo Compañero: Sigue al jugador y ladra alegremente
-    dogHead.lookAt(player.x,getGroundY(player.x,player.z)+1.62,player.z);
-    if(distToDog>1.5){
-      const dx=(player.x-dogGroup.position.x)*0.02;
-      const dz=(player.z-dogGroup.position.z)*0.02;
-      dogGroup.position.x+=dx; dogGroup.position.z+=dz;
-      dogGroup.position.y=getGroundY(dogGroup.position.x,dogGroup.position.z);
-    }
-    if(distToDog<2.4&&now-lastBarkTime>4200){
-      lastBarkTime=now;playSFX('bark');
-    }
-  }else{
-    // Modo Patrulla: Camina entre la Bodega, Patio y Cajón
-    const waypoints=[[2.4,3.2],[5.0,0.5],[-3.0,-1.0]];
-    const wpIdx=Math.floor((now*0.00015)%3);
-    const targetWp=waypoints[wpIdx];
-    const wdx=targetWp[0]-dogGroup.position.x, wdz=targetWp[1]-dogGroup.position.z;
-    if(Math.hypot(wdx,wdz)>0.5){
-      dogGroup.position.x+=wdx*0.005; dogGroup.position.z+=wdz*0.005;
-      dogGroup.position.y=getGroundY(dogGroup.position.x,dogGroup.position.z);
-      dogHead.rotation.y=Math.atan2(wdx,wdz);
-    }
-  }
+  // 3. Perro de finca
+  updateDog(dt,now);
 
   renderer.render(scene,camera);
+}
+
+/* IA del perro de finca: máquina de estados vigila → ronda → acompaña.
+   Camina pegado al terreno y respeta blocked(), igual que el jugador.
+   Va aparte de frame() para poder simularla sin renderizar. */
+function updateDog(dt,now){
+  const dogPos=dogGroup.position;
+  const dSee=Math.hypot(player.x-dogPos.x,player.z-dogPos.z);
+  dogStateT+=dt;
+  // transiciones: el jugador cerca siempre manda
+  if(dSee<5.5){ if(dogState!=='follow'){dogState='follow';dogStateT=0;} }
+  else if(dogState==='follow'){ dogState='patrol';dogStateT=0; }
+  else if(dogState==='guard'&&dogStateT>10){ dogState='patrol';dogStateT=0; }
+  else if(dogState==='patrol'&&dogStateT>30){ dogState='guard';dogStateT=0;dogWp=(dogWp+1)%DOG_WPS.length; }
+
+  let tgt=null,stopAt=0,dogSpeed=0;
+  if(dogState==='follow'){                     // trota hasta el jugador, sin pegársele encima
+    tgt=[player.x,player.z];stopAt=1.7;dogSpeed=dSee>9?3.4:2.3;
+  }else if(dogState==='patrol'){               // ronda las estaciones
+    tgt=DOG_WPS[dogWp];stopAt=0.6;dogSpeed=1.5;
+    if(Math.hypot(tgt[0]-dogPos.x,tgt[1]-dogPos.z)<0.8){dogState='guard';dogStateT=0;dogWp=(dogWp+1)%DOG_WPS.length;}
+  }                                            // 'guard': se queda quieto vigilando
+
+  let dogMoving=false,dogYawTgt=dogYaw;
+  if(tgt){
+    const ddx=tgt[0]-dogPos.x,ddz=tgt[1]-dogPos.z,dd=Math.hypot(ddx,ddz);
+    if(dd>stopAt){
+      dogYawTgt=Math.atan2(ddx,ddz);
+      const step=Math.min(dogSpeed*dt,dd-stopAt*0.5);
+      const ux=ddx/dd,uz=ddz/dd;
+      const nx=dogPos.x+ux*step,nz=dogPos.z+uz*step;
+      // colisión con estructuras y árboles; si choca de frente, se desliza por un eje
+      if(!blocked(nx,nz)){dogPos.x=nx;dogPos.z=nz;dogMoving=true;}
+      else if(!blocked(nx,dogPos.z)){dogPos.x=nx;dogMoving=true;}
+      else if(!blocked(dogPos.x,nz)){dogPos.z=nz;dogMoving=true;}
+      else{
+        // rincón cóncavo: intenta bordear en perpendicular, a un lado y al otro
+        const px=-uz*step,pz=ux*step;
+        if(!blocked(dogPos.x+px,dogPos.z+pz)){dogPos.x+=px;dogPos.z+=pz;dogMoving=true;}
+        else if(!blocked(dogPos.x-px,dogPos.z-pz)){dogPos.x-=px;dogPos.z-=pz;dogMoving=true;}
+      }
+    }
+  }
+  /* Sin salida por más de 1.5 s: en ronda cambia de objetivo; siguiendo al jugador
+     se queda quieto ladrando, que es lo que hace un perro al otro lado de un muro. */
+  if(tgt&&!dogMoving)dogStuck+=dt; else dogStuck=0;
+  if(dogStuck>1.5){dogStuck=0;if(dogState==='patrol')dogWp=(dogWp+1)%DOG_WPS.length;}
+  dogPos.y=getGroundY(dogPos.x,dogPos.z);      // SIEMPRE pegado al relieve, se mueva o no
+
+  // giro del cuerpo hacia donde camina, por el arco más corto
+  let dYaw=dogYawTgt-dogYaw;
+  while(dYaw>Math.PI)dYaw-=Math.PI*2;
+  while(dYaw<-Math.PI)dYaw+=Math.PI*2;
+  dogYaw+=dYaw*Math.min(1,dt*5);
+  dogGroup.rotation.y=dogYaw;
+
+  // sentarse: solo cuando lleva un rato vigilando quieto
+  const wantSit=dogState==='guard'&&dogStateT>4;
+  dogSit+=((wantSit?1:0)-dogSit)*Math.min(1,dt*2.5);
+  dogBodyPivot.rotation.x=dogSit*0.42;         // pecho arriba, grupa abajo
+  // trote: patas en diagonal y rebote del cuerpo
+  if(dogMoving){
+    dogGait+=dt*dogSpeed*4.0;
+    dogLegs.forEach((hip,k)=>{hip.rotation.x=Math.sin(dogGait+((k===0||k===3)?0:Math.PI))*0.55;});
+    dogBodyPivot.position.y=Math.abs(Math.sin(dogGait*2))*0.03;
+  }else{
+    dogLegs.forEach((hip,k)=>{hip.rotation.x+=((k>1?-dogSit*0.9:0)-hip.rotation.x)*Math.min(1,dt*5);});
+    dogBodyPivot.position.y+=(-dogSit*0.09-dogBodyPivot.position.y)*Math.min(1,dt*5);
+  }
+  // cabeza: sigue al jugador de cerca, escanea el horizonte al vigilar
+  let headYaw;
+  if(dogState==='follow'){
+    let h=Math.atan2(player.x-dogPos.x,player.z-dogPos.z)-dogYaw;
+    while(h>Math.PI)h-=Math.PI*2; while(h<-Math.PI)h+=Math.PI*2;
+    headYaw=Math.max(-1.1,Math.min(1.1,h));
+  }else if(dogState==='guard')headYaw=Math.sin(now*0.0008)*0.95;   // barre el terreno
+  else headYaw=Math.sin(now*0.0015)*0.22;
+  dogHeadPivot.rotation.y+=(headYaw-dogHeadPivot.rotation.y)*Math.min(1,dt*4);
+  dogHeadPivot.rotation.x+=((dogState==='follow'&&dSee<2.6?-0.22:0)-dogHeadPivot.rotation.x)*Math.min(1,dt*4);
+  // cola: meneo alegre con el jugador, lento y atento al vigilar
+  dogTailPivot.rotation.z=Math.sin(now*(dogState==='follow'?0.026:0.007))*(dogState==='follow'?0.55:0.22);
+  // ladridos: contento cerca del jugador, aviso espaciado en vigilancia
+  const barkGap=dogState==='follow'?5200:15000;
+  if(now-lastBarkTime>barkGap&&(dogState==='follow'?dSee<2.8:dogState==='guard')){
+    lastBarkTime=now;playSFX('bark');
+  }
 }
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 renderer.setSize(innerWidth,innerHeight);

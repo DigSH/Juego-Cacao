@@ -23,8 +23,10 @@ Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explo
   - Selección entre **Mateo** (granjero con camisa azul) y **Valentina** (granjera con camisa roja).
   - Brazos 3D ergonómicos en vista de 1ª persona con herramienta de madera y animación de inercia y balanceo natural al caminar.
 - **Fauna con IA de Comportamiento Autónomo**:
-  - **Perro de Finca (Compañero/Patrulla)**: Trota autónomamente entre estaciones y sigue al jugador al acercarse, moviendo la cola y ladrando.
-  - **Bandada de Pájaros (Boids AI)**: Vuelan en curvas armónicas ajustando velocidad de aleteo según ascenso/descenso.
+  - **Perro de Finca (`updateDog`)**: Máquina de estados **vigila → ronda → acompaña**. Camina con cuatro patas y trote en diagonal, se sienta al vigilar, escanea el terreno con la cabeza y menea la cola según el estado. Respeta `blocked()` y `getGroundY()` igual que el jugador, con deslizamiento perpendicular y cambio de objetivo si se acorrala.
+    - Los waypoints de `DOG_WPS` deben poder unirse **en línea recta**: la IA solo apunta a su objetivo, no hay pathfinding. Si un tramo cruza un edificio o el cacaotal, el perro se clava contra la pared.
+    - La IA vive fuera de `frame()` para poder simularse sin renderizar.
+  - **Bandada de Pájaros**: Vuelan en curvas armónicas con alabeo hacia el interior de la curva y aleteo según ascenso/descenso. Las alas van tumbadas en horizontal sobre pivotes en el lomo; el rumbo del grupo es `-a`, el de la velocidad tangencial del círculo.
   - **Mariposas Botánicas**: Revolotean entre árboles y realizan posados periódicos en las hojas y mazorcas.
 - **Iluminación de Escena Equilibrada**:
   - **AmbientLight** (`ambLight`) combinada con **HemisphereLight**, sol y **moonLight** para eliminar caras en negro sólido en sombras e interiores.
