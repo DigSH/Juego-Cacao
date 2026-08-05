@@ -249,7 +249,11 @@
   <h1>Beneficiadero<br><em>explorable</em></h1>
   <p>Caminas por tu beneficiadero en Charalá. Recibes un lote y lo llevas por el proceso <strong>tú mismo</strong>:</p>
   <div class="steps">→ <b>Cajón</b> de fermentación · días, volteos, recipiente<br>→ <b>Patio</b> de secado · ojo con el clima<br>→ <b>Estación meteorológica</b> · consulta antes de decidir<br>→ <b>Bodega</b> · procesa, vende y ve tu grado</div>
-  <p>El sol cruza el cielo y marca el día. El <strong>sol y la lluvia</strong> cambian el secado. El sabor no se cosecha: se fermenta.</p>
+  <div class="lead" style="margin:12px 0 6px;color:var(--amber)">Selecciona tu Cacaotero/a</div>
+  <div class="seg" id="charSelect" style="margin-bottom:16px">
+    <button data-v="m" aria-pressed="true" onclick="selectChar('m')">👨‍🌾 Mateo<small>Granjero de Charalá</small></button>
+    <button data-v="f" aria-pressed="false" onclick="selectChar('f')">👩‍🌾 Valentina<small>Granjera de Charalá</small></button>
+  </div>
   <button class="cta" onclick="enter()">Entrar al beneficiadero</button>
 </div>
 
@@ -1057,9 +1061,41 @@ const dogTail=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.28,0.08),dogMat);dogTa
 world.add(dogGroup);
 let lastBarkTime=0;
 
-/* ---------- jugador / cámara ---------- */
+/* ---------- jugador / cámara / brazos de granjero 3D ---------- */
+let playerGender='m';
 const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
 const SENS={look:0.0040,move:5.1};   // move en unidades por segundo
+
+scene.add(camera); // para que los brazos se muevan integrados a la cámara
+const handGroup=new THREE.Group();
+camera.add(handGroup);
+
+const sleeveMatM=new THREE.MeshLambertMaterial({color:0x2b5488}); // camisa azul Mateo
+const sleeveMatF=new THREE.MeshLambertMaterial({color:0x9e3232}); // camisa roja Valentina
+const skinMat=new THREE.MeshLambertMaterial({color:0xd9a77c});
+
+const lArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.045,0.35,8),sleeveMatM);
+lArmMesh.position.set(-0.24,-0.22,-0.42);lArmMesh.rotation.set(0.4,0.2,-0.2);handGroup.add(lArmMesh);
+const lHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.042,8,8),skinMat);
+lHandMesh.position.set(-0.24,-0.34,-0.52);handGroup.add(lHandMesh);
+
+const rArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.045,0.35,8),sleeveMatM);
+rArmMesh.position.set(0.24,-0.22,-0.42);rArmMesh.rotation.set(0.4,-0.2,0.2);handGroup.add(rArmMesh);
+const rHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.042,8,8),skinMat);
+rHandMesh.position.set(0.24,-0.34,-0.52);handGroup.add(rHandMesh);
+
+// herramienta remo de madera en mano derecha
+const toolMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.48,6),mat('post'));
+toolMesh.position.set(0.26,-0.28,-0.50);toolMesh.rotation.set(0.6,0.1,-0.3);handGroup.add(toolMesh);
+
+function selectChar(g){
+  playerGender=g;
+  seg('charSelect',g);
+  const matSel=g==='m'?sleeveMatM:sleeveMatF;
+  lArmMesh.material=matSel; rArmMesh.material=matSel;
+  $('hLot').textContent=(g==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina')+' · '+$('hLot').textContent.split('·')[1]||'';
+}
+
 function applyCam(){
   const gy=getGroundY(player.x,player.z);
   camera.position.set(player.x,gy+1.62,player.z);
@@ -1112,6 +1148,11 @@ function frame(){
       if(!blocked(nx,player.z))player.x=nx;
       if(!blocked(player.x,nz))player.z=nz;
       stepTimer+=dt*spdMult;if(stepTimer>0.36){stepTimer=0;playStep();}
+      const bob=Math.sin(now*0.01)*0.015;
+      handGroup.position.y=bob;
+      handGroup.position.x=Math.cos(now*0.005)*0.008;
+    }else{
+      handGroup.position.set(0,0,0);
     }
     applyCam();
     // estación cercana
@@ -1194,7 +1235,8 @@ function loadLot(){
   hour=6.3;                                   // cada lote arranca al amanecer de un nuevo día
   syncControls();setWeather(lot.weather);setBeans('beanW');
   $('hClock').textContent=fmtHour(hour);
-  $('hLot').textContent='Lote '+String.fromCharCode(65+idx)+' · Día '+(idx+1);
+  const name=playerGender==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina';
+  $('hLot').textContent=name+' · Lote '+String.fromCharCode(65+idx)+' (Día '+(idx+1)+')';
   $('hVar').textContent=VARIETIES[lot.variety].name+' · '+lot.kg+'kg · monilia '+Math.round(lot.monilia*100)+'%';
   $('hWallet').textContent=cop(total);
   player.x=0;player.z=9;player.yaw=0;player.pitch=-0.05;applyCam();
