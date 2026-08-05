@@ -973,7 +973,7 @@ const WX={
 const WDIR={N:0,NE:-Math.PI/4,E:-Math.PI/2,SE:-Math.PI*3/4,S:Math.PI,SW:Math.PI*3/4,W:Math.PI/2,NW:Math.PI/4};
 const WCOL={soleado:'#E7BE63',variable:'#AD9C84',lluvioso:'#7fa0b8'};
 const WNAME={soleado:'Soleado',variable:'Variable',lluvioso:'Lluvioso'};
-const DAY_SECONDS=420;          // un día completo (24 h) dura 7 minutos reales
+const DAY_SECONDS=150;          // un día completo (24 h) dura 2.5 minutos reales (reloj dinámico y vivo)
 let hour=6.3,curW='soleado',rainStrength=0,mmToday=0;
 const DUSK_TOP=0x2c3a60,DUSK_BOT=0xd9834a,NIGHT_TOP=0x0b1226,NIGHT_BOT=0x1c2846;
 const DAWN_LIGHT=0xffa85c,NOON_LIGHT=0xfff0d2;
@@ -1230,8 +1230,8 @@ function frame(){
       if(best){$('interactLbl').textContent=best.lbl;$('interactBtn').classList.remove('hidden');}
       else $('interactBtn').classList.add('hidden');}
   }
-  tick(dt);                                   // el día corre aunque haya un panel abierto
-  clockAcc+=dt;if(clockAcc>0.4){clockAcc=0;$('hClock').textContent=fmtHour(hour);}
+  tick(dt);                                   // el día corre dinámicamente
+  $('hClock').textContent=fmtHour(hour);
   // rotar balizas 3D
   beacons.forEach(b=>{
     b.mesh.rotation.y+=dt*1.6;
