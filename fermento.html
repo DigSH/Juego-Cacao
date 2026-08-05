@@ -652,16 +652,46 @@ function part(x,y,z,sx,sy,sz,key,g,tint){const m=new THREE.Mesh(box,mat(key,tint
 function texRepeat(key,rx,ry){const t=TEX[key].clone();t.needsUpdate=true;
   t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=maxAniso;return t;}
 
-/* ---------- terreno expandido (finca cacaotera 52×44) ---------- */
-const GW=52,GD=44; // finca ampliada
+/* ---------- función de elevación / relieve 3D del terreno ---------- */
+function getGroundY(x,z){
+  const distFromCenter=Math.hypot(x-0.5,z-1.5);
+  const flatten=clamp((distFromCenter-6.0)/8.0,0,1);
+  if(flatten<=0)return 0;
+  const hill1=Math.sin(x*0.12)*Math.cos(z*0.14)*1.6;
+  const hill2=Math.sin(x*0.22+1.2)*0.8;
+  const hill3=Math.cos(z*0.18-0.8)*0.6;
+  return(hill1+hill2+hill3)*flatten;
+}
+
+/* ---------- terreno expandido con relieve (finca cacaotera 52×44) ---------- */
+const GW=52,GD=44;
 const world=new THREE.Group(); scene.add(world);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(GW,GD),
-  new THREE.MeshLambertMaterial({map:texRepeat('grass',GW,GD)}));
-ground.rotation.x=-Math.PI/2;world.add(ground);
+const groundGeo=new THREE.PlaneGeometry(GW,GD,64,52);
+groundGeo.rotateX(-Math.PI/2);
+const posAttr=groundGeo.attributes.position;
+for(let i=0;i<posAttr.count;i++){
+  const vx=posAttr.getX(i), vz=posAttr.getZ(i);
+  posAttr.setY(i,getGroundY(vx,vz));
+}
+groundGeo.computeVertexNormals();
+const ground=new THREE.Mesh(groundGeo,new THREE.MeshLambertMaterial({map:texRepeat('grass',GW,GD)}));
+world.add(ground);
+
 let patchY=0.015;
 function patch(x,z,w,d){
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({map:texRepeat('dirt',w,d)}));
-  m.rotation.x=-Math.PI/2;m.position.set(x,patchY,z);patchY+=0.004;world.add(m);return m;}
+  const segX=Math.max(4,Math.round(w*1.5)), segZ=Math.max(4,Math.round(d*1.5));
+  const pGeo=new THREE.PlaneGeometry(w,d,segX,segZ);
+  pGeo.rotateX(-Math.PI/2);
+  const pPos=pGeo.attributes.position;
+  for(let i=0;i<pPos.count;i++){
+    const wx=x+pPos.getX(i), wz=z+pPos.getZ(i);
+    pPos.setY(i,getGroundY(wx,wz)+patchY);
+  }
+  pGeo.computeVertexNormals();
+  patchY+=0.003;
+  const m=new THREE.Mesh(pGeo,new THREE.MeshLambertMaterial({map:texRepeat('dirt',w,d)}));
+  world.add(m);return m;
+}
 patch(0.5,2,3.5,24);      // camino central ampliado
 patch(-4.5,-1.5,8,6);     // zona del cajón
 patch(5.5,-1,8,7);      // patio de secado
@@ -746,10 +776,11 @@ function cacaoTree(tx,tz,seed){
   const r=rnd(seed);
   const trunkMat=mat('trunk'), leafMat=mat('leaf');
   const pMat1=mat('pod'), pMat2=mat('pod2');
+  const baseY=getGroundY(tx,tz);
 
   const tH=2.4+r()*0.5;
   const trunkMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.32,tH,10),trunkMat);
-  trunkMesh.position.set(tx,tH/2,tz);
+  trunkMesh.position.set(tx,baseY+tH/2,tz);
   trunkMesh.rotation.z=(r()-0.5)*0.15;
   world.add(trunkMesh);
 
@@ -757,13 +788,13 @@ function cacaoTree(tx,tz,seed){
   for(let i=0;i<3;i++){
     const a=i*Math.PI*2/3+r()*0.4;
     const bMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.16,1.8,8),trunkMat);
-    bMesh.position.set(tx+Math.cos(a)*0.5,tH*0.75+0.3,tz+Math.sin(a)*0.5);
+    bMesh.position.set(tx+Math.cos(a)*0.5,baseY+tH*0.75+0.3,tz+Math.sin(a)*0.5);
     bMesh.rotation.z=0.6; bMesh.rotation.y=a;
     world.add(bMesh);
   }
 
   // Copas de follaje
-  const cY=tH+0.5;
+  const cY=baseY+tH+0.5;
   [[0,cY,0,1.8],[-0.9,cY-0.2,0.6,1.4],[0.9,cY-0.2,-0.6,1.4],[0.6,cY-0.2,0.9,1.3],[-0.6,cY-0.2,-0.9,1.3],[0,cY+0.6,0,1.2]].forEach(([dx,dy,dz,rad])=>{
     const lMesh=new THREE.Mesh(new THREE.DodecahedronGeometry(rad,1),leafMat);
     lMesh.position.set(tx+dx,dy,tz+dz);world.add(lMesh);
@@ -778,7 +809,7 @@ function cacaoTree(tx,tz,seed){
     const pMesh=new THREE.Mesh(podGeo,pMat);
     const hFrac=0.25+r()*0.5;
     const ang=r()*Math.PI*2;
-    pMesh.position.set(tx+Math.cos(ang)*0.26,tH*hFrac,tz+Math.sin(ang)*0.26);
+    pMesh.position.set(tx+Math.cos(ang)*0.26,baseY+tH*hFrac,tz+Math.sin(ang)*0.26);
     pMesh.rotation.z=0.3+(r()-0.5)*0.4;
     world.add(pMesh);
   }
@@ -979,7 +1010,11 @@ STATIONS.forEach(s=>{
 /* ---------- jugador / cámara ---------- */
 const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
 const SENS={look:0.0040,move:5.1};   // move en unidades por segundo
-function applyCam(){camera.position.set(player.x,1.62,player.z);camera.rotation.set(player.pitch,player.yaw,0,'YXZ');}
+function applyCam(){
+  const gy=getGroundY(player.x,player.z);
+  camera.position.set(player.x,gy+1.62,player.z);
+  camera.rotation.set(player.pitch,player.yaw,0,'YXZ');
+}
 
 /* look-drag en el canvas */
 let lookId=null,lookLast=null;
@@ -1041,7 +1076,8 @@ function frame(){
   // rotar balizas 3D
   beacons.forEach(b=>{
     b.mesh.rotation.y+=dt*1.6;
-    b.mesh.position.y=2.5+Math.sin(now*0.003+b.station.x)*0.14;
+    const gy=getGroundY(b.station.x,b.station.z);
+    b.mesh.position.y=gy+2.5+Math.sin(now*0.003+b.station.x)*0.14;
   });
   // actualizar luciérnagas y vapor
   const isNight=sunSprite.position.y<player.z-10||moonSprite.material.opacity>0.3;
