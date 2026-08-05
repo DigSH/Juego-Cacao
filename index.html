@@ -439,8 +439,8 @@ const COL={grass:0x4f6b34,dirt:0x5a4126,crate:0x8a5f30,plank:0xb07f3c,
   slab:0x8a8072,post:0x7c5225,roof:0x8b5a34,sack:0xc2aa80,trunk:0x6f4a24,leaf:0x3f6b34,
   pod:0xd0a83a,pod2:0xc25a3a,beanU:0x9270CE,beanW:0xc07d33,beanO:0x6B5E3C,counter:0x6b4a2a,gold:0xE7BE63};
 
-/* ===================== TEXTURAS PROCEDURALES REALISTAS (HD 128×128) =====================
-   Se dibujan en <canvas> al arrancar con gradientes y filtrado suave: estilo clásico realista.  */
+/* ===================== TEXTURAS PROCEDURALES ULTRA-HD (256×256) =====================
+   Se dibujan en <canvas> al arrancar con gradientes, estarcido y filtrado suave.  */
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
 const TEX={};
 function rnd(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
@@ -455,7 +455,7 @@ function noise(c,s,hex,r,lo,hi){
   c.putImageData(img,0,0);
 }
 function makeTex(key,seed,draw){
-  const S=128,cv=document.createElement('canvas');cv.width=cv.height=S;
+  const S=256,cv=document.createElement('canvas');cv.width=cv.height=S;
   const c=cv.getContext('2d');c.imageSmoothingEnabled=true;
   draw(c,rnd(seed),S);
   const t=new THREE.CanvasTexture(cv);
@@ -473,34 +473,39 @@ function makeAlphaTex(key,size,draw){
   TEX[key]=t;return t;
 }
 
-/* Pasto realista: prado verde suave con briznas orgánicas */
+/* Pasto Ultra-HD: prado natural con 600 briznas orgánicas y florecillas silvestres */
 makeTex('grass',11,(c,r,s)=>{
   noise(c,s,COL.grass,r,-0.12,0.12);
-  c.lineWidth=1.5;
-  for(let k=0;k<350;k++){
-    const x=r()*s,y=r()*s,len=4+r()*10,ang=-Math.PI/2+(r()-0.5)*0.8;
-    c.strokeStyle=tone(COL.grass,r()<0.5?0.25:-0.25);
+  c.lineWidth=1.6;
+  for(let k=0;k<650;k++){
+    const x=r()*s,y=r()*s,len=5+r()*14,ang=-Math.PI/2+(r()-0.5)*0.85;
+    c.strokeStyle=tone(COL.grass,r()<0.5?0.28:-0.28);
     c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+Math.cos(ang)*len*0.5,y+Math.sin(ang)*len*0.5,x+Math.cos(ang)*len,y+Math.sin(ang)*len);c.stroke();
   }
+  // florecillas silvestres amarillas y blancas dándole vida al suelo
+  for(let f=0;f<35;f++){
+    const fx=r()*s,fy=r()*s,col=r()<0.6?'#fbe852':'#ffffff';
+    c.fillStyle=col;c.beginPath();c.arc(fx,fy,1.8+r()*1.2,0,Math.PI*2);c.fill();
+  }
 });
-/* Tierra realista: suelo natural compacto con textura fina y piedras */
+/* Tierra realista: suelo natural compacto con textura fina, piedras y raíces */
 makeTex('dirt',23,(c,r,s)=>{
   noise(c,s,COL.dirt,r,-0.18,0.14);
-  c.fillStyle=tone(COL.dirt,-0.32);
-  for(let k=0;k<80;k++){c.beginPath();c.arc(r()*s,r()*s,0.8+r()*2.2,0,Math.PI*2);c.fill();}
-  c.fillStyle=tone(COL.dirt,0.22);
-  for(let k=0;k<50;k++){c.beginPath();c.arc(r()*s,r()*s,0.6+r()*1.4,0,Math.PI*2);c.fill();}
+  c.fillStyle=tone(COL.dirt,-0.34);
+  for(let k=0;k<120;k++){c.beginPath();c.arc(r()*s,r()*s,1.0+r()*2.8,0,Math.PI*2);c.fill();}
+  c.fillStyle=tone(COL.dirt,0.24);
+  for(let k=0;k<70;k++){c.beginPath();c.arc(r()*s,r()*s,0.8+r()*1.8,0,Math.PI*2);c.fill();}
 });
 /* Tablas de madera realistas con veta y bisel */
 function planks(c,r,s,hex,rowH){
   noise(c,s,hex,r,-0.08,0.08);
   const pH=s/rowH;
   for(let j=0;j<s;j+=pH){
-    c.fillStyle=tone(hex,-0.38);c.fillRect(0,j,s,2);
-    for(let k=0;k<12;k++){
+    c.fillStyle=tone(hex,-0.40);c.fillRect(0,j,s,3);
+    for(let k=0;k<20;k++){
       const y=j+r()*pH,len=s*(0.3+r()*0.7),x=r()*(s-len);
-      c.strokeStyle=tone(hex,r()<0.5?-0.18:0.12);c.lineWidth=1;
-      c.beginPath();c.moveTo(x,y);c.lineTo(x+len,y+(r()-0.5)*2);c.stroke();
+      c.strokeStyle=tone(hex,r()<0.5?-0.20:0.14);c.lineWidth=1.2;
+      c.beginPath();c.moveTo(x,y);c.lineTo(x+len,y+(r()-0.5)*3);c.stroke();
     }
   }
 }
@@ -508,21 +513,21 @@ makeTex('plank',3,(c,r,s)=>planks(c,r,s,COL.plank,4));
 makeTex('counter',13,(c,r,s)=>planks(c,r,s,COL.counter,4));
 makeTex('crate',5,(c,r,s)=>{
   planks(c,r,s,COL.crate,4);
-  c.strokeStyle=tone(COL.crate,-0.45);c.lineWidth=4;c.strokeRect(2,2,s-4,s-4);
+  c.strokeStyle=tone(COL.crate,-0.48);c.lineWidth=6;c.strokeRect(3,3,s-6,s-6);
 });
 makeTex('post',7,(c,r,s)=>{
   noise(c,s,COL.post,r,-0.08,0.08);
-  for(let i=0;i<s;i+=2){
-    c.strokeStyle=tone(COL.post,(i<4||i>s-4)?-0.35:0.10);c.lineWidth=1.5;
-    c.beginPath();c.moveTo(i,0);c.lineTo(i+(r()-0.5)*3,s);c.stroke();
+  for(let i=0;i<s;i+=3){
+    c.strokeStyle=tone(COL.post,(i<8||i>s-8)?-0.38:0.12);c.lineWidth=2;
+    c.beginPath();c.moveTo(i,0);c.lineTo(i+(r()-0.5)*4,s);c.stroke();
   }
 });
 makeTex('slab',9,(c,r,s)=>{
   noise(c,s,COL.slab,r,-0.08,0.08);
-  c.strokeStyle=tone(COL.slab,-0.28);c.lineWidth=2;c.strokeRect(1,1,s-2,s-2);
-  for(let k=0;k<60;k++){
-    c.fillStyle=tone(COL.slab,r()<0.5?-0.22:0.18);
-    c.fillRect(r()*s,r()*s,1.5,1.5);
+  c.strokeStyle=tone(COL.slab,-0.30);c.lineWidth=3;c.strokeRect(2,2,s-4,s-4);
+  for(let k=0;k<120;k++){
+    c.fillStyle=tone(COL.slab,r()<0.5?-0.25:0.20);
+    c.fillRect(r()*s,r()*s,2,2);
   }
 });
 makeTex('roof',15,(c,r,s)=>{
@@ -530,16 +535,19 @@ makeTex('roof',15,(c,r,s)=>{
   const step=s/8;
   for(let i=0;i<s;i+=step){
     const g=c.createLinearGradient(i,0,i+step,0);
-    g.addColorStop(0,tone(COL.roof,-0.40));g.addColorStop(0.5,tone(COL.roof,0.28));g.addColorStop(1,tone(COL.roof,-0.30));
+    g.addColorStop(0,tone(COL.roof,-0.42));g.addColorStop(0.5,tone(COL.roof,0.32));g.addColorStop(1,tone(COL.roof,-0.32));
     c.fillStyle=g;c.fillRect(i,0,step,s);
   }
 });
 makeTex('sack',19,(c,r,s)=>{
   noise(c,s,COL.sack,r,-0.06,0.06);
-  c.strokeStyle=tone(COL.sack,-0.22);c.lineWidth=1;
-  for(let i=0;i<s;i+=4){c.beginPath();c.moveTo(i,0);c.lineTo(i,s);c.stroke();}
-  c.strokeStyle=tone(COL.sack,0.18);
-  for(let j=0;j<s;j+=4){c.beginPath();c.moveTo(0,j);c.lineTo(s,j);c.stroke();}
+  c.strokeStyle=tone(COL.sack,-0.24);c.lineWidth=1.5;
+  for(let i=0;i<s;i+=6){c.beginPath();c.moveTo(i,0);c.lineTo(i,s);c.stroke();}
+  c.strokeStyle=tone(COL.sack,0.20);
+  for(let j=0;j<s;j+=6){c.beginPath();c.moveTo(0,j);c.lineTo(s,j);c.stroke();}
+  // estarcido de tinta "CACAO SANTANDER"
+  c.fillStyle='rgba(40,25,15,0.65)';c.font='bold 16px sans-serif';c.textAlign='center';
+  c.fillText('CACAO',s/2,s/2-4);c.font='bold 11px sans-serif';c.fillText('SANTANDER',s/2,s/2+12);
 });
 makeTex('trunk',27,(c,r,s)=>{
   noise(c,s,COL.trunk,r,-0.12,0.10);
@@ -1202,36 +1210,65 @@ function frame(){
   }
   stGeo.attributes.position.needsUpdate=true;
 
-  // animación de fauna (pájaros, mariposas, perro)
+  // IA avanzada de animación de fauna (pájaros, mariposas, perro de finca)
+  // 1. Pájaros en bandada volando en curvas armónicas (Boids/Flock AI)
   birds.forEach((b,i)=>{
-    const a=now*0.0006+i*Math.PI/3;
-    const rad=18+Math.sin(a*0.5)*4;
-    b.group.position.set(-6+Math.cos(a)*rad,17+Math.sin(a*2)*2,Math.sin(a)*rad);
+    const a=now*0.0007+i*Math.PI/3;
+    const rad=19+Math.sin(a*0.4)*5;
+    const climb=Math.sin(a*2)*2.5;
+    b.group.position.set(-6+Math.cos(a)*rad,17+climb,Math.sin(a)*rad);
     b.group.rotation.y=-a+Math.PI/2;
-    b.lWing.rotation.z=Math.sin(now*0.012+i)*0.45;
-    b.rWing.rotation.z=-Math.sin(now*0.012+i)*0.45;
+    const flapRate=climb>0?0.016:0.006; // aleteo rápido al subir, planeo suave al bajar
+    b.lWing.rotation.z=Math.sin(now*flapRate+i)*0.5;
+    b.rWing.rotation.z=-Math.sin(now*flapRate+i)*0.5;
   });
 
+  // 2. Mariposas con IA de posado en árboles (Botanical Landing AI)
   const isSunny=WX[curW].rain===0;
   butterflies.forEach((bf,i)=>{
     bf.visible=isSunny&&sunSprite.position.y>player.z-20;
     if(!bf.visible)return;
-    const t=now*0.0015+i*1.4;
-    bf.position.x=bf.userData.bx+Math.sin(t*0.7)*1.8;
-    bf.position.z=bf.userData.bz+Math.cos(t*0.5)*1.8;
-    const gy=getGroundY(bf.position.x,bf.position.z);
-    bf.position.y=gy+1.2+Math.sin(t*1.8)*0.4;
-    bf.userData.lW.rotation.y=Math.sin(now*0.025+i)*0.75;
-    bf.userData.rW.rotation.y=-Math.sin(now*0.025+i)*0.75;
+    const t=now*0.0016+i*1.5;
+    const isLanding=Math.sin(t*0.2)>0.6; // posado periódico en hojas
+    if(isLanding){
+      bf.userData.lW.rotation.y=Math.sin(now*0.004)*0.2;
+      bf.userData.rW.rotation.y=-Math.sin(now*0.004)*0.2;
+    }else{
+      bf.position.x=bf.userData.bx+Math.sin(t*0.8)*2.2;
+      bf.position.z=bf.userData.bz+Math.cos(t*0.6)*2.2;
+      const gy=getGroundY(bf.position.x,bf.position.z);
+      bf.position.y=gy+1.3+Math.sin(t*2.0)*0.5;
+      bf.userData.lW.rotation.y=Math.sin(now*0.028+i)*0.85;
+      bf.userData.rW.rotation.y=-Math.sin(now*0.028+i)*0.85;
+    }
   });
 
-  // perro de la finca reacciona si el jugador se acerca
-  dogTail.rotation.y=Math.sin(now*0.012)*0.4;
-  const distToDog=Math.hypot(player.x-2.4,player.z-3.2);
-  if(distToDog<4.0){
+  // 3. IA de Patrulla y Compañía del Perro de Finca (Dog Patrol & Companion AI)
+  const distToDog=Math.hypot(player.x-dogGroup.position.x,player.z-dogGroup.position.z);
+  dogTail.rotation.y=Math.sin(now*(distToDog<4.0?0.025:0.012))*0.45;
+
+  if(distToDog<4.5){
+    // Modo Compañero: Sigue al jugador y ladra alegremente
     dogHead.lookAt(player.x,getGroundY(player.x,player.z)+1.62,player.z);
-    if(distToDog<2.2&&now-lastBarkTime>4500){
+    if(distToDog>1.5){
+      const dx=(player.x-dogGroup.position.x)*0.02;
+      const dz=(player.z-dogGroup.position.z)*0.02;
+      dogGroup.position.x+=dx; dogGroup.position.z+=dz;
+      dogGroup.position.y=getGroundY(dogGroup.position.x,dogGroup.position.z);
+    }
+    if(distToDog<2.4&&now-lastBarkTime>4200){
       lastBarkTime=now;playSFX('bark');
+    }
+  }else{
+    // Modo Patrulla: Camina entre la Bodega, Patio y Cajón
+    const waypoints=[[2.4,3.2],[5.0,0.5],[-3.0,-1.0]];
+    const wpIdx=Math.floor((now*0.00015)%3);
+    const targetWp=waypoints[wpIdx];
+    const wdx=targetWp[0]-dogGroup.position.x, wdz=targetWp[1]-dogGroup.position.z;
+    if(Math.hypot(wdx,wdz)>0.5){
+      dogGroup.position.x+=wdx*0.005; dogGroup.position.z+=wdz*0.005;
+      dogGroup.position.y=getGroundY(dogGroup.position.x,dogGroup.position.z);
+      dogHead.rotation.y=Math.atan2(wdx,wdz);
     }
   }
 
