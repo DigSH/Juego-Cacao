@@ -10,30 +10,31 @@ Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explo
 
 ## Características Técnicas y Estéticas
 
-- **Estética Clásica Realista HD (128×128)**:
-  - Texturas procedurales generadas en `<canvas>` al iniciar a resolución 128×128.
+- **Estética Clásica Realista Ultra-HD (256×256)**:
+  - Texturas procedurales generadas en `<canvas>` al iniciar a resolución 256×256 (650 briznas orgánicas con flores silvestres, estarcido de fique *"CACAO SANTANDER"*, vetas profundas de madera y agregados de concreto).
   - Filtrado bilineal y mipmapping suave (`LinearFilter` / `LinearMipmapLinearFilter`) con anisotropía máxima.
   - Cero archivos de imagen externos (todo generado en memoria por PRNG con semilla determinista).
-- **Modelos 3D Estructurales**:
-  - **Cajón de Fermentación**: Tina rectangular de madera reforzada con masa de granos abultada y pala/remo de madera.
-  - **Patio de Secado + Marquesina**: Losa de concreto elevada, camillas con bordes de madera, techo acanalado y rastrillo de tendido.
-  - **Bodega de Acopio**: Mostrador con báscula de pesaje digital/analógica, costales de fique en 3D (`DodecahedronGeometry`), techo rústico y farol de bronce con luz nocturna.
-  - **Estación Meteorológica**: Garita de persianas blancas, pluviómetro, anemómetro giratorio de 3 copas, veleta y tablero de telemetría.
-  - **Cacaoteros (*Theobroma cacao*)**: Plantación de 25 cacaoteros distribuidos en el cacaotal (52×44 u), con ramificación en horqueta y mazorcas nacidas directamente en la corteza del tronco (*caulifloria*).
+- **Relieve y Elevación 3D del Terreno**:
+  - Función de elevación matemática `getGroundY(x, z)` con colinas y lomas en el cacaotal (+0.5 m a +2.5 m) y beneficiadero nivelado.
+  - Normales recalculadas (`computeVertexNormals`) para sombras realistas y física de movimiento que adapta la altura del jugador al terreno.
+- **Modelación y Física de Colisiones 3D**:
+  - Detección de colisiones circular para los 25 cacaoteros, cajas delimitadoras para las estaciones 3D (Cajón, Patio + Marquesina, Bodega + Báscula + Sacos, Estación Met, Perro) y límites del mapa (52×44 u).
+- **Personaje Seleccionable y Brazos 3D (*Viewmodel 1ª Persona*)**:
+  - Selección entre **Mateo** (granjero con camisa azul) y **Valentina** (granjera con camisa roja).
+  - Brazos 3D ergonómicos en vista de 1ª persona con herramienta de madera y animación de inercia y balanceo natural al caminar.
+- **Fauna con IA de Comportamiento Autónomo**:
+  - **Perro de Finca (Compañero/Patrulla)**: Trota autónomamente entre estaciones y sigue al jugador al acercarse, moviendo la cola y ladrando.
+  - **Bandada de Pájaros (Boids AI)**: Vuelan en curvas armónicas ajustando velocidad de aleteo según ascenso/descenso.
+  - **Mariposas Botánicas**: Revolotean entre árboles y realizan posados periódicos en las hojas y mazorcas.
+- **Iluminación de Escena Equilibrada**:
+  - **AmbientLight** (`ambLight`) combinada con **HemisphereLight**, sol y **moonLight** para eliminar caras en negro sólido en sombras e interiores.
 - **Sintetizador de Audio Procedural (`Web Audio API`)**:
-  - Efecto de pasos según el terreno al caminar.
-  - Ambiente continuo de viento y lluvia sintetizada por filtro de ruido rosa/blanco según el clima.
-  - Sonidos de UI: clics en botones, sliders, apertura/cierre de paneles (*bottom-sheets*) y campanada de venta (*chime*).
+  - Pasos en terreno, viento y lluvia ambiental continua, efectos de UI, ladridos del perro y campanada de venta (*chime*).
   - Botón de silenciar/activar en el HUD (`🔊 / 🔇`).
 - **Navegación e Interfaz**:
   - **Balizas 3D Flotantes**: Cristales octaédricos giratorios con códigos de color sobre cada estación.
   - **Mini-Brújula en HUD**: Muestra orientación en grados y rumbo (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`).
   - **Atajos**: `ESC` para cerrar paneles, `Shift` para correr (multiplicador ×1.6).
-  - **Partículas**: Luciérnagas nocturnas parpadeantes y vapor de fermentación saliendo del cajón.
-- **Módulos Educativos y Logros**:
-  - **Estación de Inspección de Mazorcas (`panelTree`)**: Diagnóstico de variedades (*Criollo*, *Trinitario*, *CCN-51*) y síntomas de Monilia (*Moniliophthora roreri*).
-  - **Guía de Prueba de Corte (*Cut Test*)**: Visualización gráfica de granos Pizarra, Violeta, Marrón Óptimo y Sobrefermentados.
-  - **Medallas y Logros**: Sistema de reconocimientos postcosecha al cerrar la campaña de 5 lotes.
 
 ## Mapa del Mundo (Centro en 0, 52×44 u)
 
