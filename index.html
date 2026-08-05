@@ -1061,32 +1061,35 @@ const dogTail=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.28,0.08),dogMat);dogTa
 world.add(dogGroup);
 let lastBarkTime=0;
 
-/* ---------- jugador / cámara / brazos de granjero 3D ---------- */
+/* ---------- jugador / cámara / brazos de granjero 3D (Viewmodel 1ra persona) ---------- */
 let playerGender='m';
 const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
 const SENS={look:0.0040,move:5.1};   // move en unidades por segundo
 
-scene.add(camera); // para que los brazos se muevan integrados a la cámara
+scene.add(camera);
 const handGroup=new THREE.Group();
 camera.add(handGroup);
+handGroup.position.set(0,-0.38,-0.55); // posición ergonómica natural en la parte inferior
 
 const sleeveMatM=new THREE.MeshLambertMaterial({color:0x2b5488}); // camisa azul Mateo
 const sleeveMatF=new THREE.MeshLambertMaterial({color:0x9e3232}); // camisa roja Valentina
 const skinMat=new THREE.MeshLambertMaterial({color:0xd9a77c});
 
-const lArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.045,0.35,8),sleeveMatM);
-lArmMesh.position.set(-0.24,-0.22,-0.42);lArmMesh.rotation.set(0.4,0.2,-0.2);handGroup.add(lArmMesh);
-const lHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.042,8,8),skinMat);
-lHandMesh.position.set(-0.24,-0.34,-0.52);handGroup.add(lHandMesh);
+// Antebrazo izquierdo saliendo de la esquina inferior izquierda
+const lArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
+lArmMesh.position.set(-0.32,-0.10,0.08);lArmMesh.rotation.set(-0.7,0.35,-0.45);handGroup.add(lArmMesh);
+const lHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.038,10,10),skinMat);
+lHandMesh.position.set(-0.18,-0.02,-0.12);handGroup.add(lHandMesh);
 
-const rArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.045,0.35,8),sleeveMatM);
-rArmMesh.position.set(0.24,-0.22,-0.42);rArmMesh.rotation.set(0.4,-0.2,0.2);handGroup.add(rArmMesh);
-const rHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.042,8,8),skinMat);
-rHandMesh.position.set(0.24,-0.34,-0.52);handGroup.add(rHandMesh);
+// Antebrazo derecho saliendo de la esquina inferior derecha
+const rArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
+rArmMesh.position.set(0.32,-0.10,0.08);rArmMesh.rotation.set(-0.7,-0.35,0.45);handGroup.add(rArmMesh);
+const rHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.038,10,10),skinMat);
+rHandMesh.position.set(0.18,-0.02,-0.12);handGroup.add(rHandMesh);
 
-// herramienta remo de madera en mano derecha
-const toolMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.48,6),mat('post'));
-toolMesh.position.set(0.26,-0.28,-0.50);toolMesh.rotation.set(0.6,0.1,-0.3);handGroup.add(toolMesh);
+// Herramienta remo de madera alineada en la mano derecha
+const toolMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.014,0.55,8),mat('post'));
+toolMesh.position.set(0.18,0.06,-0.18);toolMesh.rotation.set(0.7,-0.2,-0.4);handGroup.add(toolMesh);
 
 function selectChar(g){
   playerGender=g;
@@ -1148,11 +1151,12 @@ function frame(){
       if(!blocked(nx,player.z))player.x=nx;
       if(!blocked(player.x,nz))player.z=nz;
       stepTimer+=dt*spdMult;if(stepTimer>0.36){stepTimer=0;playStep();}
-      const bob=Math.sin(now*0.01)*0.015;
-      handGroup.position.y=bob;
-      handGroup.position.x=Math.cos(now*0.005)*0.008;
+      const bobY=Math.sin(now*0.009)*0.012;
+      const bobX=Math.cos(now*0.0045)*0.006;
+      handGroup.position.set(bobX,-0.38+bobY,-0.55);
     }else{
-      handGroup.position.set(0,0,0);
+      const idleSway=Math.sin(now*0.002)*0.003;
+      handGroup.position.set(idleSway,-0.38+idleSway*0.5,-0.55);
     }
     applyCam();
     // estación cercana
