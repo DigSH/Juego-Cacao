@@ -391,30 +391,31 @@ const COL={grass:0x4f6b34,dirt:0x5a4126,crate:0x8a5f30,plank:0xb07f3c,
   slab:0x8a8072,post:0x7c5225,roof:0x8b5a34,sack:0xc2aa80,trunk:0x6f4a24,leaf:0x3f6b34,
   pod:0xd0a83a,pod2:0xc25a3a,beanU:0x9270CE,beanW:0xc07d33,beanO:0x6B5E3C,counter:0x6b4a2a,gold:0xE7BE63};
 
-/* ===================== TEXTURAS PROCEDURALES (pixel-art 16×16) =====================
-   Se dibujan en <canvas> al arrancar: cero assets externos, cero peticiones de red.  */
+/* ===================== TEXTURAS PROCEDURALES REALISTAS (HD 128×128) =====================
+   Se dibujan en <canvas> al arrancar con gradientes y filtrado suave: estilo clásico realista.  */
 const maxAniso=renderer.capabilities.getMaxAnisotropy();
 const TEX={};
-/* PRNG con semilla → cada textura se ve igual en cada partida */
 function rnd(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-/* aclara (f>0) u oscurece (f<0) un color hex → string css */
 function tone(hex,f){const r=(hex>>16)&255,g=(hex>>8)&255,b=hex&255,t=f>=0?255:0,a=Math.abs(f);
   return'rgb('+Math.round(r+(t-r)*a)+','+Math.round(g+(t-g)*a)+','+Math.round(b+(t-b)*a)+')';}
-/* ruido pixel a pixel sobre un color base */
-function noise(c,s,hex,r,lo,hi){for(let i=0;i<s;i++)for(let j=0;j<s;j++){
-  c.fillStyle=tone(hex,lo+r()*(hi-lo));c.fillRect(i,j,1,1);}}
+function noise(c,s,hex,r,lo,hi){
+  const img=c.createImageData(s,s),data=img.data,cr=(hex>>16)&255,cg=(hex>>8)&255,cb=hex&255;
+  for(let i=0;i<s*s;i++){const f=lo+r()*(hi-lo),t=f>=0?255:0,a=Math.abs(f);
+    data[i*4]=Math.round(cr+(t-cr)*a);data[i*4+1]=Math.round(cg+(t-cg)*a);
+    data[i*4+2]=Math.round(cb+(t-cb)*a);data[i*4+3]=255;}
+  c.putImageData(img,0,0);
+}
 function makeTex(key,seed,draw){
-  const S=16,cv=document.createElement('canvas');cv.width=cv.height=S;
-  const c=cv.getContext('2d');c.imageSmoothingEnabled=false;
+  const S=128,cv=document.createElement('canvas');cv.width=cv.height=S;
+  const c=cv.getContext('2d');c.imageSmoothingEnabled=true;
   draw(c,rnd(seed),S);
   const t=new THREE.CanvasTexture(cv);
-  t.magFilter=THREE.NearestFilter;          // bordes duros: look voxel
+  t.magFilter=THREE.LinearFilter;
   t.minFilter=THREE.LinearMipmapLinearFilter;
   t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=maxAniso;
   TEX[key]=t;return t;
 }
-/* texturas con transparencia (sol, luna, salpicaduras): filtrado suave, sin repetir */
 function makeAlphaTex(key,size,draw){
   const cv=document.createElement('canvas');cv.width=cv.height=size;
   draw(cv.getContext('2d'),size);
@@ -424,109 +425,145 @@ function makeAlphaTex(key,size,draw){
   TEX[key]=t;return t;
 }
 
-/* pasto: mata verde con briznas claras y oscuras */
-makeTex('grass',11,(c,r,s)=>{noise(c,s,COL.grass,r,-0.22,0.16);
-  for(let k=0;k<16;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.grass,r()<0.5?0.30:-0.30);c.fillRect(i,j,1,2);}});
-/* tierra pisada del beneficiadero */
-makeTex('dirt',23,(c,r,s)=>{noise(c,s,COL.dirt,r,-0.25,0.18);
-  for(let k=0;k<7;k++){const i=r()*(s-2)|0,j=r()*s|0;c.fillStyle=tone(COL.dirt,-0.35);c.fillRect(i,j,2,1);}
-  for(let k=0;k<5;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.dirt,0.24);c.fillRect(i,j,1,1);}});
-/* tablas horizontales: base de toda la madera aserrada */
+/* Pasto realista: prado verde suave con briznas orgánicas */
+makeTex('grass',11,(c,r,s)=>{
+  noise(c,s,COL.grass,r,-0.12,0.12);
+  c.lineWidth=1.5;
+  for(let k=0;k<350;k++){
+    const x=r()*s,y=r()*s,len=4+r()*10,ang=-Math.PI/2+(r()-0.5)*0.8;
+    c.strokeStyle=tone(COL.grass,r()<0.5?0.25:-0.25);
+    c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+Math.cos(ang)*len*0.5,y+Math.sin(ang)*len*0.5,x+Math.cos(ang)*len,y+Math.sin(ang)*len);c.stroke();
+  }
+});
+/* Tierra realista: suelo natural compacto con textura fina y piedras */
+makeTex('dirt',23,(c,r,s)=>{
+  noise(c,s,COL.dirt,r,-0.18,0.14);
+  c.fillStyle=tone(COL.dirt,-0.32);
+  for(let k=0;k<80;k++){c.beginPath();c.arc(r()*s,r()*s,0.8+r()*2.2,0,Math.PI*2);c.fill();}
+  c.fillStyle=tone(COL.dirt,0.22);
+  for(let k=0;k<50;k++){c.beginPath();c.arc(r()*s,r()*s,0.6+r()*1.4,0,Math.PI*2);c.fill();}
+});
+/* Tablas de madera realistas con veta y bisel */
 function planks(c,r,s,hex,rowH){
-  noise(c,s,hex,r,-0.10,0.10);
-  for(let k=0;k<18;k++){const i=r()*(s-4)|0,j=r()*s|0;c.fillStyle=tone(hex,-0.20);c.fillRect(i,j,2+(r()*3|0),1);}
-  c.fillStyle=tone(hex,-0.42);for(let j=rowH-1;j<s;j+=rowH)c.fillRect(0,j,s,1);
-  for(let j=0;j<s;j+=rowH){const i=1+(r()*(s-2)|0);c.fillStyle=tone(hex,-0.38);c.fillRect(i,j,1,rowH-1);}
+  noise(c,s,hex,r,-0.08,0.08);
+  const pH=s/rowH;
+  for(let j=0;j<s;j+=pH){
+    c.fillStyle=tone(hex,-0.38);c.fillRect(0,j,s,2);
+    for(let k=0;k<12;k++){
+      const y=j+r()*pH,len=s*(0.3+r()*0.7),x=r()*(s-len);
+      c.strokeStyle=tone(hex,r()<0.5?-0.18:0.12);c.lineWidth=1;
+      c.beginPath();c.moveTo(x,y);c.lineTo(x+len,y+(r()-0.5)*2);c.stroke();
+    }
+  }
 }
 makeTex('plank',3,(c,r,s)=>planks(c,r,s,COL.plank,4));
-makeTex('counter',13,(c,r,s)=>planks(c,r,s,COL.counter,5));
-/* cajón de fermentación: tablas + marco reforzado */
-makeTex('crate',5,(c,r,s)=>{planks(c,r,s,COL.crate,4);
-  c.fillStyle=tone(COL.crate,-0.34);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);
-  c.fillStyle=tone(COL.crate,0.18);c.fillRect(1,1,s-2,1);});
-/* poste: veta vertical y cantos oscuros */
-makeTex('post',7,(c,r,s)=>{noise(c,s,COL.post,r,-0.10,0.10);
-  c.globalAlpha=0.55;
-  for(let i=0;i<s;i++){c.fillStyle=tone(COL.post,(i===0||i===s-1)?-0.38:(i<3||i>s-4)?-0.14:0.08);c.fillRect(i,0,1,s);}
-  c.globalAlpha=1;
-  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*(s-4)|0;c.fillStyle=tone(COL.post,-0.24);c.fillRect(i,j,1,2+(r()*3|0));}});
-/* placa de cemento del patio de secado */
-makeTex('slab',9,(c,r,s)=>{noise(c,s,COL.slab,r,-0.12,0.12);
-  c.fillStyle=tone(COL.slab,-0.26);c.fillRect(0,0,s,1);c.fillRect(0,0,1,s);
-  c.fillStyle=tone(COL.slab,0.18);c.fillRect(1,1,s-1,1);c.fillRect(1,1,1,s-1);
-  for(let k=0;k<9;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.slab,-0.28);c.fillRect(i,j,1,1);}});
-/* teja de zinc acanalada de la marquesina */
-makeTex('roof',15,(c,r,s)=>{noise(c,s,COL.roof,r,-0.08,0.08);
-  c.globalAlpha=0.7;
-  for(let i=0;i<s;i++){const p=i%4;c.fillStyle=tone(COL.roof,p===0?-0.32:p===1?0.02:p===2?0.22:0);c.fillRect(i,0,1,s);}
-  c.globalAlpha=1;
-  c.fillStyle=tone(COL.roof,-0.30);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);});
-/* costal de fique: trama cruzada de hilos gruesos */
-makeTex('sack',19,(c,r,s)=>{noise(c,s,COL.sack,r,-0.10,0.10);
-  c.globalAlpha=0.55;
-  for(let j=0;j<s;j++)for(let i=0;i<s;i++){
-    const warp=((i>>1)+(j>>1))&1;                       // urdimbre / trama alternadas
-    const edge=(warp?j:i)&1;                            // canto oscuro de cada hilo
-    c.fillStyle=tone(COL.sack,edge?-0.30:(warp?0.26:0.06));c.fillRect(i,j,1,1);}
-  c.globalAlpha=1;
-  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.sack,-0.34);c.fillRect(i,j,1,1);}});
-/* corteza del cacaotero */
-makeTex('trunk',27,(c,r,s)=>{noise(c,s,COL.trunk,r,-0.14,0.10);
-  for(let k=0;k<16;k++){const i=r()*s|0,j=r()*s|0;
-    c.fillStyle=tone(COL.trunk,r()<0.5?-0.30:0.16);c.fillRect(i,j,1,3+(r()*7|0));}
-  c.fillStyle=tone(COL.trunk,-0.32);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
-/* follaje */
-makeTex('leaf',33,(c,r,s)=>{noise(c,s,COL.leaf,r,-0.26,0.14);
-  for(let k=0;k<10;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.leaf,-0.42);c.fillRect(i,j,2,1);c.fillRect(i,j+1,1,2);}
-  for(let k=0;k<8;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(COL.leaf,0.30);c.fillRect(i,j,1,2);}});
-/* mazorca: lomos verticales y cáscara rugosa */
-function podTex(key,seed,hex){makeTex(key,seed,(c,r,s)=>{noise(c,s,hex,r,-0.10,0.10);
-  c.globalAlpha=0.75;
-  for(let i=0;i<s;i++){const p=i%5;c.fillStyle=tone(hex,p===0?-0.36:p===1?-0.10:p===2?0.22:p===3?0.04:-0.16);c.fillRect(i,0,1,s);}
-  c.globalAlpha=1;
-  for(let k=0;k<14;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(hex,r()<0.5?-0.26:0.24);c.fillRect(i,j,1,1);}
-  c.fillStyle=tone(hex,-0.30);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);});}
+makeTex('counter',13,(c,r,s)=>planks(c,r,s,COL.counter,4));
+makeTex('crate',5,(c,r,s)=>{
+  planks(c,r,s,COL.crate,4);
+  c.strokeStyle=tone(COL.crate,-0.45);c.lineWidth=4;c.strokeRect(2,2,s-4,s-4);
+});
+makeTex('post',7,(c,r,s)=>{
+  noise(c,s,COL.post,r,-0.08,0.08);
+  for(let i=0;i<s;i+=2){
+    c.strokeStyle=tone(COL.post,(i<4||i>s-4)?-0.35:0.10);c.lineWidth=1.5;
+    c.beginPath();c.moveTo(i,0);c.lineTo(i+(r()-0.5)*3,s);c.stroke();
+  }
+});
+makeTex('slab',9,(c,r,s)=>{
+  noise(c,s,COL.slab,r,-0.08,0.08);
+  c.strokeStyle=tone(COL.slab,-0.28);c.lineWidth=2;c.strokeRect(1,1,s-2,s-2);
+  for(let k=0;k<60;k++){
+    c.fillStyle=tone(COL.slab,r()<0.5?-0.22:0.18);
+    c.fillRect(r()*s,r()*s,1.5,1.5);
+  }
+});
+makeTex('roof',15,(c,r,s)=>{
+  noise(c,s,COL.roof,r,-0.05,0.05);
+  const step=s/8;
+  for(let i=0;i<s;i+=step){
+    const g=c.createLinearGradient(i,0,i+step,0);
+    g.addColorStop(0,tone(COL.roof,-0.40));g.addColorStop(0.5,tone(COL.roof,0.28));g.addColorStop(1,tone(COL.roof,-0.30));
+    c.fillStyle=g;c.fillRect(i,0,step,s);
+  }
+});
+makeTex('sack',19,(c,r,s)=>{
+  noise(c,s,COL.sack,r,-0.06,0.06);
+  c.strokeStyle=tone(COL.sack,-0.22);c.lineWidth=1;
+  for(let i=0;i<s;i+=4){c.beginPath();c.moveTo(i,0);c.lineTo(i,s);c.stroke();}
+  c.strokeStyle=tone(COL.sack,0.18);
+  for(let j=0;j<s;j+=4){c.beginPath();c.moveTo(0,j);c.lineTo(s,j);c.stroke();}
+});
+makeTex('trunk',27,(c,r,s)=>{
+  noise(c,s,COL.trunk,r,-0.12,0.10);
+  c.lineWidth=2;
+  for(let k=0;k<40;k++){
+    const x=r()*s,y1=r()*s,y2=y1+10+r()*30;
+    c.strokeStyle=tone(COL.trunk,r()<0.5?-0.30:0.15);
+    c.beginPath();c.moveTo(x,y1);c.lineTo(x+(r()-0.5)*4,y2);c.stroke();
+  }
+});
+makeTex('leaf',33,(c,r,s)=>{
+  c.fillStyle=tone(COL.leaf,-0.15);c.fillRect(0,0,s,s);
+  for(let k=0;k<180;k++){
+    const x=r()*s,y=r()*s,rx=3+r()*5,ry=2+r()*3,rot=r()*Math.PI;
+    c.fillStyle=tone(COL.leaf,-0.30+r()*0.50);
+    c.beginPath();c.ellipse(x,y,rx,ry,rot,0,Math.PI*2);c.fill();
+  }
+});
+function podTex(key,seed,hex){
+  makeTex(key,seed,(c,r,s)=>{
+    c.fillStyle=hexStr(hex);c.fillRect(0,0,s,s);
+    const step=s/6;
+    for(let i=0;i<s;i+=step){
+      const g=c.createLinearGradient(i,0,i+step,0);
+      g.addColorStop(0,tone(hex,-0.35));g.addColorStop(0.5,tone(hex,0.30));g.addColorStop(1,tone(hex,-0.30));
+      c.fillStyle=g;c.fillRect(i,0,step,s);
+    }
+  });
+}
 podTex('pod',41,COL.pod);podTex('pod2',43,COL.pod2);
-/* masa de granos: en grises, para teñirla según el estado de fermentación.
-   Cada grano lleva sombra propia para que la pila se lea grano a grano.  */
 makeTex('beans',17,(c,r,s)=>{
-  c.fillStyle='#6b6b6b';c.fillRect(0,0,s,s);           // hueco entre granos
-  for(let k=0;k<42;k++){
-    const x=r()*s,y=r()*s,rx=1.5+r()*1.0,ry=1.0+r()*0.7,rot=r()*Math.PI,v=214+(r()*41|0);
-    c.fillStyle='#4f4f4f';                              // sombra
-    c.beginPath();c.ellipse(x+0.6,y+0.9,rx,ry,rot,0,Math.PI*2);c.fill();
-    c.fillStyle='rgb('+v+','+v+','+v+')';               // grano
-    c.beginPath();c.ellipse(x,y,rx,ry,rot,0,Math.PI*2);c.fill();}
-  c.globalAlpha=0.5;c.fillStyle='#ffffff';              // brillo suelto
-  for(let k=0;k<10;k++)c.fillRect(r()*s|0,r()*s|0,1,1);
-  c.globalAlpha=1;});
-/* placa dorada de la bodega */
-makeTex('gold',31,(c,r,s)=>{noise(c,s,COL.gold,r,-0.10,0.12);
-  c.fillStyle=tone(COL.gold,-0.42);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);
-  c.fillStyle=tone(COL.gold,0.42);c.fillRect(2,2,s-4,1);c.fillRect(2,2,1,s-4);
-  c.fillStyle=tone(COL.gold,-0.24);c.fillRect(4,4,s-8,s-8);
-  c.fillStyle=tone(COL.gold,0.34);c.fillRect(6,6,s-12,s-12);});
-
-/* nube: blanco con grumos suaves */
-makeTex('cloud',51,(c,r,s)=>{noise(c,s,0xffffff,r,-0.11,0.0);
-  for(let k=0;k<9;k++){const i=r()*s|0,j=r()*s|0;c.fillStyle=tone(0xffffff,-0.16);c.fillRect(i,j,2,2);}});
-/* garita meteorológica: persianas de lamas blancas */
-makeTex('louver',53,(c,r,s)=>{const B=0xe9e5db;noise(c,s,B,r,-0.05,0.05);
-  for(let j=0;j<s;j+=3){c.fillStyle=tone(B,-0.34);c.fillRect(0,j,s,1);
-    c.fillStyle=tone(B,0.45);c.fillRect(0,j+1,s,1);}
-  c.fillStyle=tone(B,-0.30);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
-/* metal galvanizado de mástil e instrumentos */
-makeTex('metal',57,(c,r,s)=>{const B=0x9aa3ab;noise(c,s,B,r,-0.12,0.12);
-  c.globalAlpha=0.5;
-  for(let i=0;i<s;i++){c.fillStyle=tone(B,i%3===0?-0.22:i%3===1?0.16:0);c.fillRect(i,0,1,s);}
-  c.globalAlpha=1;
-  c.fillStyle=tone(B,-0.34);for(let j=2;j<s;j+=6)for(let i=2;i<s;i+=6)c.fillRect(i,j,1,1);});
-/* tablero de lecturas: fondo oscuro con renglones ámbar */
-makeTex('screen',59,(c,r,s)=>{const B=0x1b2620;noise(c,s,B,r,-0.10,0.10);
+  c.fillStyle='#4a4a4a';c.fillRect(0,0,s,s);
+  for(let k=0;k<120;k++){
+    const x=r()*s,y=r()*s,rx=3.5+r()*2,ry=2.2+r()*1.5,rot=r()*Math.PI,v=180+(r()*75|0);
+    c.fillStyle='#2b2b2b';
+    c.beginPath();c.ellipse(x+1.2,y+1.5,rx,ry,rot,0,Math.PI*2);c.fill();
+    c.fillStyle='rgb('+v+','+v+','+v+')';
+    c.beginPath();c.ellipse(x,y,rx,ry,rot,0,Math.PI*2);c.fill();
+  }
+});
+makeTex('gold',31,(c,r,s)=>{
+  const g=c.createLinearGradient(0,0,s,s);
+  g.addColorStop(0,'#f3d37a');g.addColorStop(0.5,'#ce8b3a');g.addColorStop(1,'#8c5717');
+  c.fillStyle=g;c.fillRect(0,0,s,s);
+  c.strokeStyle='#5a380a';c.lineWidth=4;c.strokeRect(2,2,s-4,s-4);
+});
+makeTex('cloud',51,(c,r,s)=>{
+  c.fillStyle='#ffffff';c.fillRect(0,0,s,s);
+  for(let k=0;k<40;k++){
+    c.fillStyle='rgba(230,235,240,0.15)';
+    c.beginPath();c.arc(r()*s,r()*s,8+r()*20,0,Math.PI*2);c.fill();
+  }
+});
+makeTex('louver',53,(c,r,s)=>{
+  c.fillStyle='#f0ede6';c.fillRect(0,0,s,s);
+  const step=s/8;
+  for(let j=0;j<s;j+=step){
+    c.fillStyle='#b8b2a5';c.fillRect(0,j,s,2);
+    c.fillStyle='#ffffff';c.fillRect(0,j+2,s,2);
+  }
+});
+makeTex('metal',57,(c,r,s)=>{
+  const g=c.createLinearGradient(0,0,s,0);
+  g.addColorStop(0,'#7d8790');g.addColorStop(0.5,'#c4cbcd');g.addColorStop(1,'#7d8790');
+  c.fillStyle=g;c.fillRect(0,0,s,s);
+});
+makeTex('screen',59,(c,r,s)=>{
+  c.fillStyle='#141f19';c.fillRect(0,0,s,s);
   c.fillStyle='#CE8B3A';
-  for(let j=3;j<s-2;j+=4)c.fillRect(3,j,3+(r()*8|0),1);
-  c.fillStyle=tone(0xE7BE63,0);c.fillRect(3,3,5,1);
-  c.fillStyle=tone(B,-0.5);c.fillRect(0,0,s,1);c.fillRect(0,s-1,s,1);c.fillRect(0,0,1,s);c.fillRect(s-1,0,1,s);});
+  for(let j=10;j<s-10;j+=16)c.fillRect(10,j,20+(r()*70|0),4);
+  c.strokeStyle='#364a3e';c.lineWidth=4;c.strokeRect(2,2,s-4,s-4);
+});
 
 /* disco solar con halo */
 makeAlphaTex('sun',64,(c,s)=>{const h=s/2,g=c.createRadialGradient(h,h,0,h,h,h);
@@ -652,12 +689,27 @@ let anemo,veleta;
   part(X-1.25,1.52,Z+0.55,1.12,0.78,0.10,'metal');
   part(X-1.25,1.52,Z+0.49,0.94,0.60,0.04,'screen');
 })();
-// Árboles de cacao (zona de cosecha)
+// Árboles de cacao (zona de cosecha orgánica)
 function tree(tx,tz){
-  for(let y=0;y<3;y++)cube(tx,y,tz,'trunk',world);
-  cube(tx,3,tz,'leaf',world);cube(tx+1,3,tz,'leaf',world);cube(tx-1,3,tz,'leaf',world);
-  cube(tx,3,tz+1,'leaf',world);cube(tx,3,tz-1,'leaf',world);cube(tx,4,tz,'leaf',world);
-  cube(tx+1,1,tz,(Math.random()<.5?'pod':'pod2'),world);cube(tx-1,2,tz,'pod',world);}
+  const trunkMat=mat('trunk');
+  const trunkGeo=new THREE.CylinderGeometry(0.22,0.36,3.2,12);
+  const trunkMesh=new THREE.Mesh(trunkGeo,trunkMat);
+  trunkMesh.position.set(tx+0.5,1.6,tz+0.5);world.add(trunkMesh);
+
+  const leafMat=mat('leaf');
+  [
+    [0.5,3.2,0.5,1.5],[0.0,3.0,0.5,1.2],[1.0,3.0,0.5,1.2],
+    [0.5,3.0,0.0,1.2],[0.5,3.0,1.0,1.2],[0.5,3.9,0.5,1.1]
+  ].forEach(([dx,dy,dz,rad])=>{
+    const lMesh=new THREE.Mesh(new THREE.DodecahedronGeometry(rad,1),leafMat);
+    lMesh.position.set(tx+dx,dy,tz+dz);world.add(lMesh);
+  });
+
+  const pMat1=mat('pod'), pMat2=mat('pod2');
+  const podGeo=new THREE.ConeGeometry(0.16,0.5,8);
+  const pod1=new THREE.Mesh(podGeo,pMat1);pod1.rotation.z=Math.PI*0.85;pod1.position.set(tx+0.78,1.4,tz+0.5);world.add(pod1);
+  const pod2=new THREE.Mesh(podGeo,pMat2);pod2.rotation.z=-Math.PI*0.85;pod2.position.set(tx+0.22,2.0,tz+0.5);world.add(pod2);
+}
 tree(-9,4);tree(-7,6);tree(-10,1);
 
 /* ---------- sol, luna y estrellas ---------- */
