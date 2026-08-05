@@ -823,6 +823,7 @@ function cacaoTree(tx,tz,seed){
     pMesh.rotation.z=0.3+(r()-0.5)*0.4;
     world.add(pMesh);
   }
+  TREES.push({x:tx,z:tz});
 }
 // Plantación de 25 cacaoteros distribuidos en el cacaotal
 for(let r=0;r<5;r++){
@@ -989,10 +990,21 @@ function tick(dt){
 /* la textura de granos es gris: se tiñe con el color del estado de fermentación */
 function setBeans(key){const m=mat('beans',COL[key]);beans.forEach(b=>b.material=m);}
 
-/* ---------- colisiones + estaciones ---------- */
-const SOLIDS=[{x0:-6.4,x1:-2.6,z0:-3.4,z1:-0.6},{x0:3.6,x1:7.4,z0:-3.4,z1:0.4},{x0:-1.4,x1:2.4,z0:4.6,z1:6.4},
-  {x0:6.2,x1:8.8,z0:3.3,z1:5.7}];
-function blocked(x,z){for(const s of SOLIDS)if(x>s.x0-0.3&&x<s.x1+0.3&&z>s.z0-0.3&&z<s.z1+0.3)return true;return false;}
+/* ---------- colisiones físicas precisas (estructuras + 25 cacaoteros + perro) ---------- */
+const TREES=[];
+const SOLIDS=[
+  {x0:-6.1,x1:-2.9,z0:-2.1,z1:-0.3}, // Cajón de fermentación
+  {x0:2.4,x1:8.6,z0:-2.8,z1:3.4},   // Patio de secado y marquesina
+  {x0:-1.4,x1:2.4,z0:2.8,z1:5.2},   // Bodega de acopio
+  {x0:6.1,x1:8.9,z0:3.1,z1:5.9},   // Estación meteorológica
+  {x0:1.9,x1:2.9,z0:2.7,z1:3.7}    // Perro guardián
+];
+function blocked(x,z){
+  if(Math.abs(x)>GW/2-1.2||Math.abs(z)>GD/2-1.2)return true;
+  for(const s of SOLIDS)if(x>s.x0-0.25&&x<s.x1+0.25&&z>s.z0-0.25&&z<s.z1+0.25)return true;
+  for(const t of TREES)if(Math.hypot(x-t.x,z-t.z)<0.65)return true;
+  return false;
+}
 const STATIONS=[
   {id:'ferment',name:'cajón',x:-4.5,z:-1.2,lbl:'Abrir cajón'},
   {id:'dry',name:'patio',x:5.5,z:0.3,lbl:'Abrir patio'},
