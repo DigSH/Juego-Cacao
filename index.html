@@ -419,13 +419,51 @@ function playStep(){
   noise.connect(f);f.connect(g);g.connect(actx.destination);noise.start(t);
 }
 
-/* ===================== ARRANQUE / GUARD ===================== */
+/* ===================== ARRANQUE / GUARD / FUNCIONES GLOBALES ===================== */
 const $=id=>document.getElementById(id);
 function seg(group,val){const el=$(group);if(el&&el.children)[...el.children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===val));}
 
+window.playerGender='m';
+let sleeveMatM=null,sleeveMatF=null,lArmMesh=null,rArmMesh=null;
+
+window.selectChar=function(g){
+  window.playerGender=g;
+  seg('charSelect',g);
+  if(sleeveMatM&&sleeveMatF&&lArmMesh&&rArmMesh){
+    const matSel=g==='m'?sleeveMatM:sleeveMatF;
+    lArmMesh.material=matSel; rArmMesh.material=matSel;
+  }
+  const hLot=$('hLot');
+  if(hLot)hLot.textContent=(g==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina')+' · '+(hLot.textContent.split('·')[1]||'');
+};
+
+window.enter=function(){
+  if(typeof initAudio==='function')initAudio();
+  const intro=$('intro');if(intro)intro.classList.add('hidden');
+  ['hud','compass','crosshair','joy','lookHint'].forEach(i=>{const el=$(i);if(el)el.classList.remove('hidden');});
+  if(typeof loadLot==='function')loadLot();
+  paused=false;
+};
+
+let appStarted=false;
 function startApp(){
-  if(typeof THREE==='undefined'){ $('intro').classList.add('hidden'); $('err').classList.remove('hidden'); }
-  else { boot(); }
+  if(appStarted)return;
+  if(typeof THREE==='undefined'){
+    let retries=0;
+    const timer=setInterval(()=>{
+      retries++;
+      if(typeof THREE!=='undefined'){
+        clearInterval(timer);appStarted=true;boot();
+      }else if(retries>=40){
+        clearInterval(timer);
+        const intro=$('intro'),err=$('err');
+        if(intro)intro.classList.add('hidden');
+        if(err)err.classList.remove('hidden');
+      }
+    },100);
+    return;
+  }
+  appStarted=true;boot();
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',startApp); }
 else { startApp(); }
@@ -1097,18 +1135,18 @@ const handGroup=new THREE.Group();
 camera.add(handGroup);
 handGroup.position.set(0,-0.38,-0.55); // posición ergonómica natural en la parte inferior
 
-const sleeveMatM=new THREE.MeshLambertMaterial({color:0x2b5488}); // camisa azul Mateo
-const sleeveMatF=new THREE.MeshLambertMaterial({color:0x9e3232}); // camisa roja Valentina
+sleeveMatM=new THREE.MeshLambertMaterial({color:0x2b5488}); // camisa azul Mateo
+sleeveMatF=new THREE.MeshLambertMaterial({color:0x9e3232}); // camisa roja Valentina
 const skinMat=new THREE.MeshLambertMaterial({color:0xd9a77c});
 
 // Antebrazo izquierdo saliendo de la esquina inferior izquierda
-const lArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
+lArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
 lArmMesh.position.set(-0.32,-0.10,0.08);lArmMesh.rotation.set(-0.7,0.35,-0.45);handGroup.add(lArmMesh);
 const lHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.038,10,10),skinMat);
 lHandMesh.position.set(-0.18,-0.02,-0.12);handGroup.add(lHandMesh);
 
 // Antebrazo derecho saliendo de la esquina inferior derecha
-const rArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
+rArmMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.038,0.48,10),sleeveMatM);
 rArmMesh.position.set(0.32,-0.10,0.08);rArmMesh.rotation.set(-0.7,-0.35,0.45);handGroup.add(rArmMesh);
 const rHandMesh=new THREE.Mesh(new THREE.SphereGeometry(0.038,10,10),skinMat);
 rHandMesh.position.set(0.18,-0.02,-0.12);handGroup.add(rHandMesh);
@@ -1116,17 +1154,6 @@ rHandMesh.position.set(0.18,-0.02,-0.12);handGroup.add(rHandMesh);
 // Herramienta remo de madera alineada en la mano derecha
 const toolMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.014,0.55,8),mat('post'));
 toolMesh.position.set(0.18,0.06,-0.18);toolMesh.rotation.set(0.7,-0.2,-0.4);handGroup.add(toolMesh);
-
-window.selectChar=function(g){
-  playerGender=g;
-  seg('charSelect',g);
-  if(sleeveMatM&&sleeveMatF&&lArmMesh&&rArmMesh){
-    const matSel=g==='m'?sleeveMatM:sleeveMatF;
-    lArmMesh.material=matSel; rArmMesh.material=matSel;
-  }
-  const hLot=$('hLot');
-  if(hLot)hLot.textContent=(g==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina')+' · '+(hLot.textContent.split('·')[1]||'');
-};
 
 const charSelEl=$('charSelect');
 if(charSelEl){
@@ -1298,8 +1325,7 @@ frame();
 /* ===================== JUEGO / FLUJO ===================== */
 let idx=0,total=0,grades=[];
 const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
-window.enter=function(){initAudio();$('intro').classList.add('hidden');['hud','compass','crosshair','joy','lookHint'].forEach(i=>$(i).classList.remove('hidden'));idx=0;total=0;grades=[];loadLot();paused=false;};
-window.resetGame=function(){$('final').classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
+window.resetGame=function(){const f=$('final');if(f)f.classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
 function loadLot(){
   const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
   hour=6.3;                                   // cada lote arranca al amanecer de un nuevo día
