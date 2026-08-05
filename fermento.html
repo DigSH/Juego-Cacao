@@ -36,6 +36,16 @@
   .hud-r .w{color:var(--gold);font-size:15px}
   .hud-r small{display:block;font-size:9px;letter-spacing:.15em;color:var(--faint);text-transform:uppercase}
 
+  #compass{position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:5;
+    display:flex;align-items:center;gap:9px;font-family:var(--fm);font-size:11px;color:var(--muted);
+    background:#0009;border:1px solid var(--line);border-radius:14px;padding:4px 14px;backdrop-filter:blur(3px);pointer-events:none}
+  #compass .c-deg{color:var(--gold);font-weight:600;min-width:44px}
+  .cut-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+  .cut-card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:11px}
+  .cut-card.on{border-color:var(--gold);background:var(--panel3)}
+  .badge-grid{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .badge{background:var(--panel2);border:1px solid var(--amber);border-radius:20px;padding:5px 12px;font-family:var(--fm);font-size:11px;color:var(--gold)}
+
   #crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
     background:#fff8;z-index:3;pointer-events:none}
 
@@ -140,6 +150,7 @@
     <span class="hsep"></span><span id="hClock" class="mono">06:20</span></div>
   <div class="hud-r" style="display:flex;align-items:center;gap:8px"><button id="hMute" class="hud-sound" title="Audio (activar/silenciar)" onclick="toggleMute()">🔊</button><div><span class="w" id="hWallet">$0</span><small>ingresos</small></div></div>
 </div>
+<div id="compass" class="hidden"><span id="cHeading" class="c-deg">N 0°</span><span class="hsep"></span><span id="cMarkers">Navegación</span></div>
 <div id="crosshair" class="hidden"></div>
 <div id="lookHint" class="hidden">arrastra<br>para mirar</div>
 <div id="joy" class="hidden"><div id="joyKnob"></div><div id="joyHint">MOVER</div></div>
@@ -202,7 +213,34 @@
   <div class="price-detail mono" id="rDetail">—</div>
   <div class="radar-wrap"><div id="rRadar"></div></div>
   <div id="rWhy"></div>
+  <button class="cta ghost" onclick="toggleCutTest()">Guía de Prueba de Corte (Cut Test)</button>
+  <div id="cutTestWrap" class="hidden" style="margin-top:10px">
+    <div class="wx-h">Prueba de Corte (Sección transversal de granos)</div>
+    <div class="cut-grid">
+      <div class="cut-card"><b style="color:#7E7059">Pizarra</b><br><small>Sin fermentar (0-3d)</small></div>
+      <div class="cut-card"><b style="color:#9270CE">Violeta</b><br><small>Incompleta (4d)</small></div>
+      <div class="cut-card on"><b style="color:#E7BE63">Marrón</b><br><small>Óptima (5-6d)</small></div>
+      <div class="cut-card"><b style="color:#C4713E">Sobrefermentado</b><br><small>Amoniaco/Moho (>7d)</small></div>
+    </div>
+  </div>
   <button class="cta" id="rNext" onclick="nextLot()" style="margin-top:14px">Siguiente lote</button>
+</div>
+
+<!-- INSPECCIÓN DE ÁRBOLES -->
+<div id="panelTree" class="sheet hidden">
+  <h3>Inspección de mazorcas y variedad</h3>
+  <div class="sub">características agronómicas y sanidad en finca</div>
+  <div class="note">
+    <b>Variedades en Santander:</b><br>
+    • <b>Criollo regional:</b> Mazorca delgada roja. Perfil aromático fino frutal y floral.<br>
+    • <b>Trinitario:</b> Híbrido robusto balanceado. Responde muy bien al volteo en cajón de madera.<br>
+    • <b>CCN-51:</b> Gran rendimiento y masa. Requiere secado lento para mitigar su acidez natural.
+  </div>
+  <div class="note" style="border-left-color:var(--danger)">
+    <b>Sanidad - Monilia (Moniliophthora roreri):</b><br>
+    Manchas pardas rugosas con esporas blancas. Reduce el rendimiento utilizable antes del beneficio.
+  </div>
+  <button class="cta" onclick="closePanel()">Volver al beneficiadero</button>
 </div>
 
 <!-- INTRO -->
@@ -740,6 +778,20 @@ const cloudMat=new THREE.MeshLambertMaterial({map:TEX.cloud,fog:false});
     scene.add(g);clouds.push(g);}
 })();
 
+/* ---------- luciérnagas nocturnas ---------- */
+const FFN=40,ffPos=new Float32Array(FFN*3),ffRnd=rnd(101);
+for(let i=0;i<FFN;i++){ffPos[i*3]=(ffRnd()-0.5)*32;ffPos[i*3+1]=0.6+ffRnd()*2.8;ffPos[i*3+2]=(ffRnd()-0.5)*26;}
+const ffGeo=new THREE.BufferGeometry();ffGeo.setAttribute('position',new THREE.BufferAttribute(ffPos,3));
+const fireflies=new THREE.Points(ffGeo,new THREE.PointsMaterial({color:0xc8ff54,size:0.8,transparent:true,opacity:0,fog:false}));
+scene.add(fireflies);
+
+/* ---------- vapor de fermentación ---------- */
+const STEAMN=16,stPos=new Float32Array(STEAMN*3);
+for(let i=0;i<STEAMN;i++){stPos[i*3]=-4.5+(Math.random()-0.5)*1.8;stPos[i*3+1]=0.6+Math.random()*1.5;stPos[i*3+2]=-2.0+(Math.random()-0.5)*1.8;}
+const stGeo=new THREE.BufferGeometry();stGeo.setAttribute('position',new THREE.BufferAttribute(stPos,3));
+const steam=new THREE.Points(stGeo,new THREE.PointsMaterial({color:0xefefef,size:1.4,transparent:true,opacity:0.25,fog:false}));
+scene.add(steam);
+
 /* ---------- lluvia: gotas alargadas + salpicaduras en el suelo ---------- */
 const RN=1200,rpos=new Float32Array(RN*6);
 function seedDrop(i,y){const x=(Math.random()-0.5)*34,z=(Math.random()-0.5)*34,L=0.5+Math.random()*0.5;
@@ -863,8 +915,24 @@ const STATIONS=[
   {id:'dry',name:'patio',x:5.5,z:0.3,lbl:'Abrir patio'},
   {id:'sell',name:'bodega',x:0.5,z:4.0,lbl:'Ir a bodega'},
   {id:'weather',name:'estación',x:7.5,z:4.5,lbl:'Ver el clima'},
+  {id:'tree',name:'árboles',x:-8.5,z:3.5,lbl:'Inspeccionar mazorcas'},
 ];
 const INTERACT=3.0;
+
+/* ---------- balizas flotantes 3D en estaciones ---------- */
+const beaconGeo=new THREE.OctahedronGeometry(0.26,0);
+const beaconMats={
+  ferment:new THREE.MeshBasicMaterial({color:0x9270CE,wireframe:true}),
+  dry:new THREE.MeshBasicMaterial({color:0xCE8B3A,wireframe:true}),
+  sell:new THREE.MeshBasicMaterial({color:0xE7BE63,wireframe:true}),
+  weather:new THREE.MeshBasicMaterial({color:0x4287f5,wireframe:true}),
+  tree:new THREE.MeshBasicMaterial({color:0x5cb85c,wireframe:true})
+};
+const beacons=[];
+STATIONS.forEach(s=>{
+  const m=new THREE.Mesh(beaconGeo,beaconMats[s.id]||beaconMats.sell);
+  m.position.set(s.x,2.6,s.z);world.add(m);beacons.push({mesh:m,station:s});
+});
 
 /* ---------- jugador / cámara ---------- */
 const player={x:0,z:9,yaw:0,pitch:-0.05,mx:0,my:0,keys:{}};
@@ -928,6 +996,33 @@ function frame(){
   }
   tick(dt);                                   // el día corre aunque haya un panel abierto
   clockAcc+=dt;if(clockAcc>0.4){clockAcc=0;$('hClock').textContent=fmtHour(hour);}
+  // rotar balizas 3D
+  beacons.forEach(b=>{
+    b.mesh.rotation.y+=dt*1.6;
+    b.mesh.position.y=2.5+Math.sin(now*0.003+b.station.x)*0.14;
+  });
+  // actualizar luciérnagas y vapor
+  const isNight=sunSprite.position.y<player.z-10||moonSprite.material.opacity>0.3;
+  fireflies.material.opacity=isNight?0.85:0;
+  if(isNight){
+    for(let i=0;i<FFN;i++){
+      ffPos[i*3+1]+=Math.sin(now*0.002+i)*0.005;
+      ffPos[i*3]+=Math.cos(now*0.0015+i)*0.004;
+    }
+    ffGeo.attributes.position.needsUpdate=true;
+  }
+  for(let i=0;i<STEAMN;i++){
+    stPos[i*3+1]+=0.4*dt;
+    if(stPos[i*3+1]>2.8)stPos[i*3+1]=0.6;
+  }
+  stGeo.attributes.position.needsUpdate=true;
+
+  // mini-brújula HUD
+  const deg=Math.round((-player.yaw*180/Math.PI)%360+360)%360;
+  const dirs=['N','NE','E','SE','S','SW','W','NW'];
+  const dirName=dirs[Math.round(deg/45)%8];
+  $('cHeading').textContent=dirName+' '+deg+'°';
+
   renderer.render(scene,camera);
 }
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
@@ -937,7 +1032,7 @@ frame();
 /* ===================== JUEGO / FLUJO ===================== */
 let idx=0,total=0,grades=[];
 const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
-window.enter=function(){initAudio();$('intro').classList.add('hidden');['hud','crosshair','joy','lookHint'].forEach(i=>$(i).classList.remove('hidden'));idx=0;total=0;grades=[];loadLot();paused=false;};
+window.enter=function(){initAudio();$('intro').classList.add('hidden');['hud','compass','crosshair','joy','lookHint'].forEach(i=>$(i).classList.remove('hidden'));idx=0;total=0;grades=[];loadLot();paused=false;};
 window.resetGame=function(){$('final').classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
 function loadLot(){
   const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
@@ -1010,7 +1105,8 @@ function tryInteract(){if(paused||!nearStation)return;
   if(nearStation.id==='ferment')openPanel('panelFerment');
   else if(nearStation.id==='dry')openPanel('panelDry');
   else if(nearStation.id==='sell')openPanel('panelSell');
-  else if(nearStation.id==='weather')openPanel('panelWeather');}
+  else if(nearStation.id==='weather')openPanel('panelWeather');
+  else if(nearStation.id==='tree')openPanel('panelTree');}
 $('interactBtn').addEventListener('click',tryInteract);
 let wxTimer=null;
 function openPanel(id){initAudio();playSFX('open');paused=true;$('interactBtn').classList.add('hidden');
@@ -1019,8 +1115,9 @@ function openPanel(id){initAudio();playSFX('open');paused=true;$('interactBtn').
   $(id).classList.remove('hidden');}
 window.closePanel=function(){playSFX('close');
   if(wxTimer){clearInterval(wxTimer);wxTimer=null;}
-  ['panelFerment','panelDry','panelSell','panelWeather'].forEach(i=>$(i).classList.add('hidden'));
+  ['panelFerment','panelDry','panelSell','panelWeather','panelTree'].forEach(i=>$(i).classList.add('hidden'));
   ['joy','lookHint','crosshair'].forEach(i=>$(i).classList.remove('hidden'));paused=false;};
+window.toggleCutTest=function(){$('cutTestWrap').classList.toggle('hidden');};
 
 window.doProcess=function(){
   playSFX('sale');
@@ -1039,11 +1136,17 @@ window.nextLot=function(){$('panelResult').classList.add('hidden');idx++;
   if(idx>=LOTS.length){renderFinal();}
   else{loadLot();['joy','lookHint','crosshair'].forEach(i=>$(i).classList.remove('hidden'));paused=false;}};
 function renderFinal(){
-  paused=true;['hud','joy','lookHint','crosshair','interactBtn'].forEach(i=>$(i).classList.add('hidden'));
+  paused=true;['hud','compass','joy','lookHint','crosshair','interactBtn'].forEach(i=>$(i).classList.add('hidden'));
   $('fTotal').textContent=cop(total);
   const count={};grades.forEach(g=>count[g]=(count[g]||0)+1);
-  $('fTally').innerHTML=Object.entries(count).map(([k,v])=>'<span>'+v+'× '+k+'</span>').join('');
   const fino=count['Fino de aroma']||0,rech=count['Pasilla / rechazo']||0;
+  const badges=[];
+  if(fino>=3)badges.push('🥇 Maestro Cacaotero (3+ Fino)');
+  if(rech===0)badges.push('🧹 Cero Defectos (Sin pasillas)');
+  if(total>=2800000)badges.push('💰 Empresario (+$2.8M COP)');
+  if(grades.length===5)badges.push('🌾 Campaña Completa');
+  $('fTally').innerHTML=Object.entries(count).map(([k,v])=>'<span>'+v+'× '+k+'</span>').join('')+
+    (badges.length?'<div class="badge-grid">'+badges.map(b=>'<div class="badge">'+b+'</div>').join('')+'</div>':'');
   $('fVerdict').textContent=fino>=3?'Manejo de maestro: convertiste la postcosecha en valor.':rech>=2?'Varios lotes se perdieron en postcosecha. Buena materia prima, decisiones que la desperdiciaron.':'Campaña sólida. Cada grado que subes en calidad se paga varias veces en el precio.';
   $('final').classList.remove('hidden');
 }
