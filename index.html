@@ -475,9 +475,10 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,200);
-const hemi=new THREE.HemisphereLight(0x9a865f,0x160d07,0.9); scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff0d2,0.9); sun.position.set(8,16,6); scene.add(sun);
-scene.fog=new THREE.Fog(0x9fc0da,12,60);
+const hemi=new THREE.HemisphereLight(0xb8c5db,0x3a2e24,1.1); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff4dc,1.2); sun.position.set(8,20,6); scene.add(sun);
+const moonLight=new THREE.DirectionalLight(0x7da8e6,0.65); scene.add(moonLight);
+scene.fog=new THREE.Fog(0x9fc0da,15,75);
 
 const COL={grass:0x4f6b34,dirt:0x5a4126,crate:0x8a5f30,plank:0xb07f3c,
   slab:0x8a8072,post:0x7c5225,roof:0x8b5a34,sack:0xc2aa80,trunk:0x6f4a24,leaf:0x3f6b34,
@@ -892,7 +893,6 @@ const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.sun,transpare
 sunSprite.scale.set(30,30,1);scene.add(sunSprite);
 const moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.moon,transparent:true,depthWrite:false,fog:false}));
 moonSprite.scale.set(19,19,1);scene.add(moonSprite);
-const moonLight=new THREE.DirectionalLight(0x9fb6e0,0);scene.add(moonLight);
 const STARN=420,spos=new Float32Array(STARN*3),sr=rnd(91);
 for(let i=0;i<STARN;i++){const th=sr()*Math.PI*2,ph=Math.acos(sr()*0.97+0.02),R=150;
   spos[i*3]=R*Math.sin(ph)*Math.cos(th);spos[i*3+1]=Math.abs(R*Math.cos(ph))+5;spos[i*3+2]=R*Math.sin(ph)*Math.sin(th);}
@@ -980,30 +980,30 @@ const DAWN_LIGHT=0xffa85c,NOON_LIGHT=0xfff0d2;
 function sunElev(h){return Math.sin((h-6)/12*Math.PI);}   // 6h sale, 12h cenit, 18h se pone
 let lastTop=-1,lastBot=-1;
 function updateSky(){
-  const W=SKY[curW],a=(hour-6)/12*Math.PI;
+  const W=SKY[curW],a=(hour-5)/14*Math.PI;
   const ex=Math.cos(a),ey=Math.sin(a),ez=-0.42,L=Math.hypot(ex,ey,ez);
   const dx=ex/L,dy=ey/L,dz=ez/L;
   // discos de sol y luna, siempre centrados sobre el jugador
   sunSprite.position.set(player.x+dx*SUN_R,dy*SUN_R,player.z+dz*SUN_R);
   moonSprite.position.set(player.x-dx*SUN_R,-dy*SUN_R,player.z-dz*SUN_R);
   sunSprite.visible=dy>-0.10;moonSprite.visible=dy<0.10;
-  sunSprite.material.opacity=clamp((dy+0.10)*4)*(0.25+0.75*WX[curW].sunF);
-  moonSprite.material.opacity=clamp((0.10-dy)*4)*(0.40+0.60*WX[curW].sunF);
-  // la luz sigue al sol: rasante y anaranjada al amanecer, cenital y clara al mediodía
-  sun.position.set(dx*60,Math.max(0.5,dy*60),dz*60);
-  sun.intensity=W.sun*clamp(dy*1.7);
+  sunSprite.material.opacity=clamp((dy+0.10)*4)*(0.45+0.55*WX[curW].sunF);
+  moonSprite.material.opacity=clamp((0.10-dy)*4)*(0.50+0.50*WX[curW].sunF);
+  // luz solar y lunar brillante
+  sun.position.set(dx*60,Math.max(1.0,dy*60),dz*60);
+  sun.intensity=Math.max(0.40,W.sun*clamp(dy*2.2));
   sun.color.setHex(lerpHex(DAWN_LIGHT,NOON_LIGHT,clamp(dy/0.38)));
-  moonLight.position.set(-dx*60,Math.max(0.5,-dy*60),-dz*60);
-  moonLight.intensity=0.26*clamp(-dy*1.8);
+  moonLight.position.set(-dx*60,Math.max(1.0,-dy*60),-dz*60);
+  moonLight.intensity=0.65*clamp(-dy*1.8);
   const dayF=clamp(dy*3.2);
-  hemi.intensity=0.26+(W.hemi-0.26)*dayF;
-  hemi.color.setHex(lerpHex(0x2c3c60,0x9a865f,dayF));
-  hemi.groundColor.setHex(lerpHex(0x05070c,0x160d07,dayF));
-  stars.material.opacity=clamp(-dy*2.2)*0.9;
+  hemi.intensity=0.68+(W.hemi-0.20)*dayF;
+  hemi.color.setHex(lerpHex(0x5c72a0,0xcedaf0,dayF));
+  hemi.groundColor.setHex(lerpHex(0x2a2018,0x4a3a2a,dayF));
+  stars.material.opacity=clamp(-dy*2.2)*0.8;
   const night=1-dayF;                        // el farol de la bodega se enciende de noche
-  lamp.intensity=night*1.15;
-  lampBlock.material.emissive.setHex(lerpHex(0x000000,0x6a4310,night));
-  // cielo y niebla: día → crepúsculo → noche
+  lamp.intensity=night*1.4;
+  lampBlock.material.emissive.setHex(lerpHex(0x000000,0x8a5b18,night));
+  // cielo y niebla: día → crepúsculo → noche iluminada
   let top,bot;
   if(dy>=0.22){top=W.sky;bot=W.fog;}
   else if(dy>=0){const t=dy/0.22;top=lerpHex(DUSK_TOP,W.sky,t);bot=lerpHex(DUSK_BOT,W.fog,t);}
@@ -1328,7 +1328,7 @@ const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
 window.resetGame=function(){const f=$('final');if(f)f.classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
 function loadLot(){
   const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
-  hour=6.3;                                   // cada lote arranca al amanecer de un nuevo día
+  hour=9.0;                                   // cada lote arranca a las 09:00 AM con luz solar mañanera brillante
   syncControls();setWeather(lot.weather);setBeans('beanW');
   $('hClock').textContent=fmtHour(hour);
   const name=playerGender==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina';
