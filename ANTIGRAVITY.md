@@ -8,6 +8,34 @@ Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explo
 - **GitHub Pages**: Desplegable automáticamente desde la raíz (`/`) sirviendo `index.html`.
 - **Dependencias externas por CDN**: Three.js **r128** y Google Fonts.
 
+## Arquitectura de Arranque
+
+El script tiene **dos ámbitos** y confundirlos ya ha causado dos veces la
+pantalla negra:
+
+| Ámbito | Qué vive ahí |
+|---|---|
+| **Global** | Pantalla de inicio: `selectChar()`, `enter()`, `startApp()` y el reintento de carga del CDN. |
+| **Dentro de `boot()`** | Todo el motor: `scene`, `renderer`, `player`, `paused`, `loadLot()`, `frame()`, `updateDog()`, `blocked()`, `getGroundY()`… |
+
+Secuencia: `DOMContentLoaded` → `startApp()` (espera a que exista `THREE`, con
+reintento cada 100 ms y panel de error a los 4 s) → `boot()` construye el mundo y
+arranca `frame()`. Al pulsar *Entrar*, `enter()` llama a **`window.startGame()`**,
+el puente que `boot()` publica al final para exponer `loadLot()` y `paused`. Si
+`enter()` se adelanta a `boot()`, deja `window.__wantStart` y `boot()` lo recoge.
+
+**Trampas ya pisadas** (no repetir):
+
+- Un `const` usado antes de su declaración (*temporal dead zone*) aborta `boot()`
+  entero. El síntoma es lienzo negro con el HUD mostrando los valores estáticos
+  del HTML (`Lote A`, `—`, `06:00`) — señal inequívoca de que `boot()` murió, **no**
+  de un problema de cámara o de luces.
+- `if(typeof algo==='function')` sobre una función local de `boot()` falla en
+  silencio: nunca se ejecuta y el síntoma aparece lejos de la causa.
+- `requestAnimationFrame(frame)` está al principio de `frame()`, así que el bucle
+  sobrevive a una excepción a mitad de cuadro: el reloj del HUD puede seguir
+  corriendo aunque no se renderice nada.
+
 ## Características Técnicas y Estéticas
 
 - **Estética Clásica Realista Ultra-HD (256×256)**:
@@ -18,7 +46,8 @@ Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explo
   - Función de elevación matemática `getGroundY(x, z)` con colinas y lomas en el cacaotal (+0.5 m a +2.5 m) y beneficiadero nivelado.
   - Normales recalculadas (`computeVertexNormals`) para sombras realistas y física de movimiento que adapta la altura del jugador al terreno.
 - **Modelación y Física de Colisiones 3D**:
-  - Detección de colisiones circular para los 25 cacaoteros, cajas delimitadoras para las estaciones 3D (Cajón, Patio + Marquesina, Bodega + Báscula + Sacos, Estación Met, Perro) y límites del mapa (52×44 u).
+  - `blocked(x, z)`: detección circular para los 25 cacaoteros, cajas delimitadoras `SOLIDS` para las cuatro estaciones fijas (Cajón, Patio + Marquesina, Bodega + Báscula + Sacos, Estación Met) y límites del mapa (52×44 u).
+  - `SOLIDS` es **solo para geometría estática**. Un objeto que se mueve no puede tener una caja fija ahí: se queda donde arrancó y deja un muro invisible (le pasó al perro).
 - **Personaje Seleccionable y Brazos 3D (*Viewmodel 1ª Persona*)**:
   - Selección entre **Mateo** (granjero con camisa azul) y **Valentina** (granjera con camisa roja).
   - Brazos 3D ergonómicos en vista de 1ª persona con herramienta de madera y animación de inercia y balanceo natural al caminar.
