@@ -421,8 +421,14 @@ function playStep(){
 
 /* ===================== ARRANQUE / GUARD ===================== */
 const $=id=>document.getElementById(id);
-if(typeof THREE==='undefined'){ $('intro').classList.add('hidden'); $('err').classList.remove('hidden'); }
-else { boot(); }
+function seg(group,val){const el=$(group);if(el&&el.children)[...el.children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===val));}
+
+function startApp(){
+  if(typeof THREE==='undefined'){ $('intro').classList.add('hidden'); $('err').classList.remove('hidden'); }
+  else { boot(); }
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',startApp); }
+else { startApp(); }
 
 function boot(){
 /* ---------- THREE setup ---------- */
@@ -1111,12 +1117,23 @@ rHandMesh.position.set(0.18,-0.02,-0.12);handGroup.add(rHandMesh);
 const toolMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.014,0.55,8),mat('post'));
 toolMesh.position.set(0.18,0.06,-0.18);toolMesh.rotation.set(0.7,-0.2,-0.4);handGroup.add(toolMesh);
 
-function selectChar(g){
+window.selectChar=function(g){
   playerGender=g;
   seg('charSelect',g);
-  const matSel=g==='m'?sleeveMatM:sleeveMatF;
-  lArmMesh.material=matSel; rArmMesh.material=matSel;
-  $('hLot').textContent=(g==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina')+' · '+$('hLot').textContent.split('·')[1]||'';
+  if(sleeveMatM&&sleeveMatF&&lArmMesh&&rArmMesh){
+    const matSel=g==='m'?sleeveMatM:sleeveMatF;
+    lArmMesh.material=matSel; rArmMesh.material=matSel;
+  }
+  const hLot=$('hLot');
+  if(hLot)hLot.textContent=(g==='m'?'👨‍🌾 Mateo':'👩‍🌾 Valentina')+' · '+(hLot.textContent.split('·')[1]||'');
+};
+
+const charSelEl=$('charSelect');
+if(charSelEl){
+  charSelEl.addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(b&&b.dataset.v)window.selectChar(b.dataset.v);
+  });
 }
 
 function applyCam(){
@@ -1304,7 +1321,6 @@ function beanPreview(){const eff=dec.fermDays*(0.75+0.25*BOX_HEAT[dec.cajon]);re
 $('fd').addEventListener('input',e=>{dec.fermDays=+e.target.value;$('fdVal').textContent=dec.fermDays+' d';setBeans(beanPreview());});
 $('vo').addEventListener('input',e=>{dec.volteos=+e.target.value;$('voVal').textContent=dec.volteos;});
 $('dd').addEventListener('input',e=>{dec.dryDays=+e.target.value;$('ddVal').textContent=dec.dryDays+' d';});
-function seg(group,val){[...$(group).children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===val));}
 $('cajon').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.cajon=b.dataset.v;seg('cajon',dec.cajon);setBeans(beanPreview());});
 $('secado').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.secado=b.dataset.v;seg('secado',dec.secado);});
 
