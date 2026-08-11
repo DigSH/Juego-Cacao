@@ -1,0 +1,32 @@
+# Corre el barrido de calibración del modelo agronómico en cada push a main.
+#
+# La prueba que más importa aquí es la de sincronía: index.html tiene que ser copia
+# byte a byte de fermento.html, porque GitHub Pages sirve index.html. Si divergen,
+# lo publicado deja de ser lo que se probó y en local no se nota nada.
+#
+# (Antes este archivo era la plantilla de ejemplo de GitHub: hacía echo "Hello, world!".)
+
+name: Pruebas del modelo
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  modelo:
+    name: Barrido de calibración
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Sin dependencias: el test extrae el modelo de fermento.html y lo barre sobre
+      # la rejilla completa de decisiones. No hay npm install que hacer.
+      - name: node test/modelo.js
+        run: node test/modelo.js
