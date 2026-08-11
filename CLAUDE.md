@@ -98,9 +98,13 @@ Es la única parte del código que se puede probar sin renderizar nada.
   hermético solo conviene si el secado ya bajó de `WET_LIMIT`; con grano húmedo
   sella el problema. Una etapa cuyo óptimo no dependa de las demás no enseña nada.
 - **Ningún parámetro puede volver una etapa binaria.** Si con cierto clima toda
-  elección lleva al rechazo, no hay nada que aprender. Calíbralo barriendo la
-  rejilla completa de decisiones por clima y comprobando que existe un óptimo y que
-  el default seguro no es catastrófico.
+  elección lleva al rechazo, no hay nada que aprender. Tampoco sirve el caso opuesto:
+  un óptimo pegado al tope de un slider es la firma de un parámetro sin contrapeso
+  (le pasó a la bodega, donde guardar 60 días ganaba en los cinco lotes).
+- **Corre `node test/modelo.js` antes y después de tocar el modelo.** Barre la rejilla
+  completa y comprueba estas reglas automáticamente; la calibración a ojo dejó cuatro
+  fallos vivos en el repo durante meses, tres de ellos documentados como correctos.
+  Si añades un efecto, añádele su prueba: la afirmación que no se comprueba se pudre.
 - **Cuidado con la variable de estado que se integra.** El moho usa la humedad
   *promedio* del almacenamiento, no la del último día: con el valor final, guardar
   húmedo en hermético parece inofensivo y desaparece la interacción que enseña.

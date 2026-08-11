@@ -66,20 +66,47 @@ con el aire de la bodega hasta acercarse a su humedad de equilibrio.
 | `emcStore(hr)` | Isoterma de sorción linealizada en 60–90% HR: `0.17·hr − 4.25`. |
 | `PACK_K` | Permeabilidad al vapor del empaque (fique 0.085 · polipropileno 0.055 · hermético 0.012 por día). |
 | `WET_LIMIT` | 7.8% de humedad ≈ actividad de agua 0.70: el umbral donde arranca el moho. |
+| `MARKET_MAX` / `MARKET_TAU` | Techo (+14%) y días característicos (22) de la prima por esperar el punto de mercado. |
+| `HOLD_COST` | 38 COP por kg seco y día: bodega, capital inmovilizado y merma de manejo. |
 
 Tres decisiones: `storeDays` (0–60), `empaque` y `estiba`. Efectos: rehumedecimiento
 hacia la EMC, moho, plaga de bodega, olor absorbido del piso, pérdida de volátiles,
-bonificación por reposo y prima de precio por esperar mercado (`marketMult`).
+bonificación por reposo, prima de precio por esperar mercado (`marketMult`) y costo
+de sostener el arrume (`storeCost`, que se descuenta del ingreso).
 
 **El moho se calcula sobre la humedad promedio del período, no la del último día.**
 Se integra la curva de sorción y se usa su media. Sin eso, guardar húmedo en
 hermético parece inofensivo —el número final se ve bien porque la barrera frena el
 intercambio— y se pierde justo la interacción que la etapa enseña.
 
-`marketMult` (+0.45%/día) existe por diseño: sin prima por esperar, vender el mismo
-día domina siempre y la etapa no obliga a decidir nada. Con ella, el óptimo en los
-tres climas es **hermético sobre estiba con almacenamiento largo**, mientras que el
-empaque permeable tiene su óptimo en 15–30 días y después se derrumba.
+**La respuesta del moho al exceso de humedad es un umbral, no una rampa.** `excess`
+reparte esa respuesta sobre 1.2 puntos de humedad. Con los 4.5 puntos que tenía antes,
+pasarse 0.2 del límite costaba 0.05 de `moldStore` y la retención de aroma del hermético
+lo compensaba de sobra: **el hermético ganaba también con grano húmedo**, en los cinco
+puntos de la banda 7.8–8.5%. La lección central de la etapa no ocurría en ningún punto
+del barrido, aunque la documentación afirmara lo contrario.
+
+**La prima de mercado satura y el costo de bodega no.** `marketMult` era lineal
+(+0.45%/día) y no tenía contrapeso: guardar 60 días —el tope del slider— era el óptimo
+en los cinco lotes y con cualquier empaque. Con la prima saturante y `HOLD_COST` lineal,
+la curva de ingreso contra días **da la vuelta**: el óptimo cae en 15–25 días y depende
+del empaque, porque el hermético sostiene la calidad más lejos.
+
+**La regla del empaque no es "hermético solo si secaste bien".** Esa es la mitad seca.
+La regla completa es comparar el grano con lo que la bodega le va a imponer:
+
+- Bodega seca (soleado, EMC 6.8%) y grano por encima de `WET_LIMIT`: el saco que
+  respira lo baja y el hermético sella el problema. **Gana el fique.**
+- Bodega húmeda (lluvioso, EMC 9.0%) y grano en punto: el saco que respira lo *sube*
+  hacia la EMC y lo pierde. **Gana el hermético**, incluso a 7.8%.
+
+Las dos direcciones están cubiertas por `test/modelo.js`, que falla si alguna deja de
+existir. La segunda es emergente, no está escrita en ninguna parte del modelo.
+
+`offOdor` arrastraba un término constante de 0.10 que castigaba arrumar al piso **con
+cero días de bodega**, cuando no hay arrume que castigar, y encima en silencio: la
+lectura que lo explica vive en la rama de `storeDays > 0`. Ahora crece con la raíz del
+tiempo de contacto desde cero.
 
 ## Características Técnicas y Estéticas
 
@@ -143,6 +170,27 @@ de (14.0, 1.0)). Sin la segunda, el edificio cae sobre una loma de hasta 2.5 m y
 losa flota o se entierra.
 
 ## Verificación
+
+**El modelo agronómico tiene pruebas.** Antes y después de tocar `evaluate()` o
+cualquier constante de arriba del `<script>`:
+
+```bash
+node test/modelo.js
+```
+
+Sin dependencias: extrae el bloque MODELO de `fermento.html` y lo barre sobre la
+rejilla completa de decisiones. Comprueba lo que CLAUDE.md exige y antes solo estaba
+en prosa —que ninguna etapa sea binaria ni tenga estrategia dominante, que las etapas
+sigan acopladas en ambas direcciones, que todo castigo traiga su lectura, que toda
+variedad anunciada como capaz de fino pueda lograrlo y que las medallas sean
+alcanzables— además de que `index.html` siga siendo copia byte a byte.
+
+Cuatro fallos vivían en el repo sin que nadie los viera hasta escribirlo: el trinitario
+no podía alcanzar fino de aroma por cinco milésimas, dos medallas eran imposibles por
+construcción (`3+ fino` con solo dos lotes capaces, `$2.8M` contra un techo de `$1.38M`),
+la bodega tenía estrategia dominante en los cinco lotes, y el hermético ganaba también
+con grano húmedo. **Los tres últimos estaban documentados aquí como comportamiento
+correcto.**
 
 Para validar la sintaxis de la aplicación tras editar el motor:
 
