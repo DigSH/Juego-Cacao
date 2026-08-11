@@ -81,6 +81,11 @@ está fuera de alcance, **fallan en silencio** y el síntoma aparece lejos de la
   0.25 de margen. El perro no tiene *pathfinding*: se clava contra la pared.
 - Un edificio fuera de las explanadas de `getGroundY()` queda sobre una loma y su
   losa flota. Añade su zona plana a la cadena de `Math.min` de esa función.
+- Una zona de tierra nueva es una fila más en `DIRT_ZONES`; no crees mallas de suelo
+  a mano. El sistema las corta en celdas disjuntas a una sola altura. Si construyes
+  una malla de terreno aparte, **escribe la posición absoluta en la geometría**:
+  desplazar solo la altura y dejar la malla en el origen fue justo el fallo que hacía
+  flotar la tierra del cacaotal sobre el patio.
 
 ### 5. Al tocar el modelo agronómico
 

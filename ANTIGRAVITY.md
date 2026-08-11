@@ -87,6 +87,10 @@ empaque permeable tiene su óptimo en 15–30 días y después se derrumba.
   - Texturas procedurales generadas en `<canvas>` al iniciar a resolución 256×256 (650 briznas orgánicas con flores silvestres, estarcido de fique *"CACAO SANTANDER"*, vetas profundas de madera y agregados de concreto).
   - Filtrado bilineal y mipmapping suave (`LinearFilter` / `LinearMipmapLinearFilter`) con anisotropía máxima.
   - Cero archivos de imagen externos (todo generado en memoria por PRNG con semilla determinista).
+- **Suelo de Tierra en Una Sola Capa (`DIRT_ZONES` → `dirtCell()`)**:
+  - Las zonas de tierra se declaran como rectángulos en `DIRT_ZONES` y se **descomponen en celdas disjuntas**: se cortan por todos los bordes X y Z, y se dibuja la celda cuyo centro cae dentro de alguna zona. Cero solapes por construcción.
+  - Todas las celdas comparten altura (`DIRT_Y`) y material, y llevan las **UV en coordenadas de mundo**, de modo que la textura corre continua de una celda a la siguiente sin costura ni rejilla visible.
+  - `dirtCell()` escribe la posición **absoluta** en la geometría y deja la malla en el origen. El `patch()` anterior solo corregía la altura y nunca trasladaba la malla: las ocho zonas se dibujaban apiladas en el centro del mapa con las alturas del sitio que les correspondía, y la del cacaotal (20×24, con lomas de 2.5 m) flotaba sobre el patio de secado.
 - **Relieve y Elevación 3D del Terreno**:
   - Función de elevación matemática `getGroundY(x, z)` con colinas y lomas en el cacaotal (+0.5 m a +2.5 m) y beneficiadero nivelado.
   - Normales recalculadas (`computeVertexNormals`) para sombras realistas y física de movimiento que adapta la altura del jugador al terreno.
