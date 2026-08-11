@@ -1,6 +1,24 @@
 # CACAO — Fermento (Beneficiadero 3D Realista)
 
-Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explora en primera persona un beneficiadero y cacaotal realista en 3D y gestiona 5 lotes de cacao a través de fermentación → secado → prueba de corte → venta.
+Serious game de **postcosecha de cacao** (Charalá, Santander). El jugador explora en primera persona un beneficiadero y cacaotal realista en 3D y gestiona 5 lotes de cacao a través de la cadena completa: **fermentación → secado → almacenamiento → predicción → prueba de corte → venta**.
+
+## Modelo de aprendizaje
+
+El juego es *aprendizaje basado en juegos digitales* (DGBL), no gamificación: las
+mecánicas **son** el contenido. Las medallas del cierre de campaña son la única capa
+de gamificación estricta.
+
+El objeto de aprendizaje es **conocimiento procedimental**: una transformación
+multietapa con variables ambientales acopladas. Cada etapa condiciona a la siguiente
+y ninguna se puede optimizar por separado —el caso central es que el empaque
+hermético solo conviene si el secado ya dejó el grano bajo el umbral de `WET_LIMIT`;
+con grano húmedo, sella el problema en lugar de resolverlo.
+
+El ciclo experiencial se cierra en `doProcess()` → `confirmPredict()`: antes de ver
+el resultado el jugador **declara** qué grado y qué humedad espera. El contraste
+predicción ↔ resultado se acumula en `predLog` y el balance final dibuja la curva
+de aciertos por lote (`fCurve`), que muestra si el criterio se formó durante la
+campaña o si ya venía dado.
 
 ## Estructura del Proyecto
 
@@ -35,6 +53,33 @@ el puente que `boot()` publica al final para exponer `loadLot()` y `paused`. Si
 - `requestAnimationFrame(frame)` está al principio de `frame()`, así que el bucle
   sobrevive a una excepción a mitad de cuadro: el reloj del HUD puede seguir
   corriendo aunque no se renderice nada.
+
+## Modelo de Almacenamiento (`evaluate()`)
+
+La tercera etapa. El grano seco **no** queda terminado: sigue intercambiando vapor
+con el aire de la bodega hasta acercarse a su humedad de equilibrio.
+
+| Constante | Qué modela |
+|---|---|
+| `STORE_HR` | HR *dentro* del galpón por clima (65 / 71 / 78%). Va por debajo de la HR exterior que reporta la estación: el galpón amortigua. |
+| `FLOOR_HR` | +7 puntos de HR efectiva por arrumar directo al piso (humedad capilar del concreto). |
+| `emcStore(hr)` | Isoterma de sorción linealizada en 60–90% HR: `0.17·hr − 4.25`. |
+| `PACK_K` | Permeabilidad al vapor del empaque (fique 0.085 · polipropileno 0.055 · hermético 0.012 por día). |
+| `WET_LIMIT` | 7.8% de humedad ≈ actividad de agua 0.70: el umbral donde arranca el moho. |
+
+Tres decisiones: `storeDays` (0–60), `empaque` y `estiba`. Efectos: rehumedecimiento
+hacia la EMC, moho, plaga de bodega, olor absorbido del piso, pérdida de volátiles,
+bonificación por reposo y prima de precio por esperar mercado (`marketMult`).
+
+**El moho se calcula sobre la humedad promedio del período, no la del último día.**
+Se integra la curva de sorción y se usa su media. Sin eso, guardar húmedo en
+hermético parece inofensivo —el número final se ve bien porque la barrera frena el
+intercambio— y se pierde justo la interacción que la etapa enseña.
+
+`marketMult` (+0.45%/día) existe por diseño: sin prima por esperar, vender el mismo
+día domina siempre y la etapa no obliga a decidir nada. Con ella, el óptimo en los
+tres climas es **hermético sobre estiba con almacenamiento largo**, mientras que el
+empaque permeable tiene su óptimo en 15–30 días y después se derrumba.
 
 ## Características Técnicas y Estéticas
 
@@ -78,9 +123,20 @@ el puente que `boot()` publica al final para exponer `loadLot()` y `paused`. Si
 |---|---|---|
 | Cajón de fermentación | Tina de madera | (-4.5, -1.2) |
 | Patio de secado | Camilla + Marquesina | (5.5, 0.3) |
+| Bodega de almacenamiento | Galpón + estibas + higrómetro | (11.1, 1.0) |
 | Bodega de acopio | Mostrador + Báscula | (0.5, 4.0) |
 | Estación meteorológica | Garita + Anemómetro | (7.5, 4.5) |
 | Árboles (Cacaotal) | Inspección de mazorcas | (-8.5, 3.5) |
+
+El galpón de almacenamiento está en (14.0, 1.0) y **no puede acercarse más al oeste**:
+el corredor de patrulla del perro corre recto por `x = 10.4`, y `blocked()` añade
+0.25 de margen a cada caja de `SOLIDS`. Un muro en `x < 10.65` deja al perro clavado
+contra la pared, porque su IA apunta al waypoint sin *pathfinding*.
+
+`getGroundY()` aplana el terreno con `Math.min` de **dos** explanadas: la del
+beneficiadero (radio 6 alrededor de (0.5, 1.5)) y la del galpón (radio 4.6 alrededor
+de (14.0, 1.0)). Sin la segunda, el edificio cae sobre una loma de hasta 2.5 m y la
+losa flota o se entierra.
 
 ## Verificación
 

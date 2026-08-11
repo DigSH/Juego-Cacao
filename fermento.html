@@ -45,6 +45,18 @@
   .cut-card.on{border-color:var(--gold);background:var(--panel3)}
   .badge-grid{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
   .badge{background:var(--panel2);border:1px solid var(--amber);border-radius:20px;padding:5px 12px;font-family:var(--fm);font-size:11px;color:var(--gold)}
+  /* contraste predicción vs resultado y curva de aciertos por lote */
+  .pred-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--line);margin-bottom:12px;font-size:12.5px;color:var(--muted)}
+  .pred-row.ok{border-color:var(--gold)}
+  .pred-row.no{border-color:var(--danger)}
+  .pred-row .mark{font-size:16px;line-height:1.2;flex:none}
+  .pred-row b{color:var(--pulp)}
+  .curve{display:flex;gap:6px;margin:4px 0 16px}
+  .curve i{flex:1;font-style:normal;text-align:center;font-family:var(--fm);font-size:10.5px;line-height:1.5;
+    padding:7px 0;border-radius:8px;background:var(--panel2);border:1px solid var(--line);color:var(--faint)}
+  .curve i.ok{border-color:var(--gold);color:var(--gold)}
+  .curve i.no{border-color:var(--danger);color:var(--danger)}
 
   #crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;
     background:#fff8;z-index:3;pointer-events:none}
@@ -187,6 +199,28 @@
   <button class="cta" onclick="closePanel()">Listo</button>
 </div>
 
+<!-- ALMACENAMIENTO -->
+<div id="panelStore" class="sheet hidden">
+  <h3>Bodega de almacenamiento</h3><div class="sub">el grano seco sigue respirando</div>
+  <div class="note" id="storeNote">—</div>
+  <div class="ctrl"><div class="ctrl-top"><label>Días en bodega antes de vender</label><span class="ctrl-val mono" id="sdVal">15 d</span></div>
+    <input type="range" id="sd" min="0" max="60" step="5" value="15"></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Empaque</label></div>
+    <div class="seg" id="empaque">
+      <button data-v="fique" aria-pressed="true">Fique<small>respira</small></button>
+      <button data-v="polipropileno" aria-pressed="false">Polipropileno<small>intermedio</small></button>
+      <button data-v="hermetico" aria-pressed="false">Hermético<small>sella el vapor</small></button>
+    </div></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Arrume</label></div>
+    <div class="seg" id="estiba">
+      <button data-v="estiba" aria-pressed="true">Sobre estiba<small>aislado del piso</small></button>
+      <button data-v="piso" aria-pressed="false">Directo al piso<small>sin estiba</small></button>
+    </div></div>
+  <div class="wx-h">Humedad del grano al vender, según empaque</div>
+  <div id="storeProj"></div>
+  <button class="cta" onclick="closePanel()">Listo</button>
+</div>
+
 <!-- ESTACIÓN METEOROLÓGICA -->
 <div id="panelWeather" class="sheet hidden">
   <h3>Estación meteorológica</h3><div class="sub" id="wxSub">—</div>
@@ -202,8 +236,29 @@
 <!-- BODEGA / PROCESAR -->
 <div id="panelSell" class="sheet hidden">
   <h3>Bodega de acopio</h3><div class="sub">procesa el lote y véndelo</div>
-  <div class="note">Al procesar se transforma en nibs → licor → barra, y se define el grado y el precio según lo que hiciste en el cajón y el patio.</div>
+  <div class="note">Al procesar se transforma en nibs → licor → barra, y se define el grado y el precio según lo que hiciste en el <b>cajón</b>, el <b>patio</b> y la <b>bodega de almacenamiento</b>.</div>
+  <div class="note" id="sellChain">—</div>
   <button class="cta" onclick="doProcess()">Procesar y vender</button>
+</div>
+
+<!-- PREDICCIÓN (se predice antes de ver el resultado) -->
+<div id="panelPredict" class="sheet hidden">
+  <h3>Antes de abrir el saco</h3><div class="sub">¿qué crees que salió?</div>
+  <div class="note" id="predHint">Anota tu predicción antes de ver el resultado. No hay castigo por fallar: el punto es comparar lo que esperabas con lo que pasó.</div>
+  <div class="ctrl"><div class="ctrl-top"><label>Grado que esperas</label></div>
+    <div class="seg" id="pGrade">
+      <button data-v="Fino de aroma" aria-pressed="false">Fino<small>de aroma</small></button>
+      <button data-v="Comercial" aria-pressed="false">Comercial<small>estándar</small></button>
+      <button data-v="Corriente" aria-pressed="false">Corriente<small>local</small></button>
+      <button data-v="Pasilla / rechazo" aria-pressed="false">Pasilla<small>rechazo</small></button>
+    </div></div>
+  <div class="ctrl"><div class="ctrl-top"><label>Humedad del grano al vender</label></div>
+    <div class="seg" id="pMoist">
+      <button data-v="seco" aria-pressed="false">Bajo 6,5%<small>sobre-seco</small></button>
+      <button data-v="punto" aria-pressed="false">6,5 – 8%<small>en punto</small></button>
+      <button data-v="humedo" aria-pressed="false">Sobre 8%<small>húmedo</small></button>
+    </div></div>
+  <button class="cta" onclick="confirmPredict()">Confirmar y abrir el saco</button>
 </div>
 
 <!-- RESULTADO -->
@@ -211,6 +266,7 @@
   <div class="grade-name" id="rGrade">—</div><div class="grade-sub" id="rSub">—</div>
   <div class="price-row"><span class="price-big mono" id="rPrice">$0</span><span class="price-unit">/kg seco</span></div>
   <div class="price-detail mono" id="rDetail">—</div>
+  <div id="rPredict"></div>
   <div class="radar-wrap"><div id="rRadar"></div></div>
   <div id="rWhy"></div>
   <button class="cta ghost" onclick="toggleCutTest()">Guía de Prueba de Corte (Cut Test)</button>
@@ -248,7 +304,7 @@
   <div class="lead">Serious game · postcosecha de cacao</div>
   <h1>Beneficiadero<br><em>explorable</em></h1>
   <p>Caminas por tu beneficiadero en Charalá. Recibes un lote y lo llevas por el proceso <strong>tú mismo</strong>:</p>
-  <div class="steps">→ <b>Cajón</b> de fermentación · días, volteos, recipiente<br>→ <b>Patio</b> de secado · ojo con el clima<br>→ <b>Estación meteorológica</b> · consulta antes de decidir<br>→ <b>Bodega</b> · procesa, vende y ve tu grado</div>
+  <div class="steps">→ <b>Cajón</b> de fermentación · días, volteos, recipiente<br>→ <b>Patio</b> de secado · ojo con el clima<br>→ <b>Almacenamiento</b> · empaque, estiba y días en bodega<br>→ <b>Estación meteorológica</b> · consulta antes de decidir<br>→ <b>Acopio</b> · predice el grado, vende y comprueba</div>
   <div class="lead" style="margin:12px 0 6px;color:var(--amber)">Selecciona tu Cacaotero/a</div>
   <div class="seg" id="charSelect" style="margin-bottom:16px">
     <button data-v="m" aria-pressed="true" onclick="selectChar('m')">👨‍🌾 Mateo<small>Granjero de Charalá</small></button>
@@ -265,9 +321,13 @@
   <div class="final-total mono" id="fTotal">$0</div>
   <div class="tally" id="fTally"></div>
   <p id="fVerdict"></p>
+  <div class="lead" style="margin:10px 0 4px">Tus predicciones, lote a lote</div>
+  <div class="curve" id="fCurve"></div>
+  <p id="fPredVerdict" style="font-size:13.5px"></p>
   <div class="reflect"><h4>Para la reflexión</h4>
-    <ol><li>¿Qué movió más el precio: fermentación o secado?</li>
+    <ol><li>¿Qué movió más el precio: fermentación, secado o almacenamiento?</li>
     <li>¿Trataste igual al CCN-51 que al criollo? ¿Debías?</li>
+    <li>¿En qué lote empezaste a acertar tu predicción, y qué entendiste ahí?</li>
     <li>¿Dónde se pierde en tu finca el cacao que aquí se castigó?</li></ol></div>
   <button class="cta" onclick="resetGame()">Jugar otra campaña</button>
 </div>
@@ -286,6 +346,21 @@ const BOX_HEAT={madera:1.0,microlote:0.82,canasto:0.62};
 const DRY_K={sol:{soleado:0.60,variable:0.42,lluvioso:0.24},marquesina:{soleado:0.48,variable:0.42,lluvioso:0.40},artificial:{soleado:0.90,variable:0.88,lluvioso:0.82}};
 const DRY_EQ={sol:5.8,marquesina:5.8,artificial:5.0};
 const ACID_MOD={sol:-0.16,marquesina:-0.05,artificial:0.13};
+/* ---------- ALMACENAMIENTO: la tercera etapa del beneficio ----------
+   El grano seco no queda "terminado": sigue intercambiando vapor de agua con el
+   aire de la bodega hasta acercarse a su humedad de equilibrio (EMC). Aquí es
+   donde se pierde en finca buena parte del cacao que salió bien del patio. */
+/* HR media *dentro* de la bodega: el galpón amortigua el aire exterior, así que
+   estos valores van por debajo de la HR ambiental que reporta la estación. */
+const STORE_HR={soleado:65,variable:71,lluvioso:78};
+const FLOOR_HR=7;                                      // el piso de concreto sube la HR efectiva del arrume (humedad capilar)
+/* isoterma de sorción del cacao, linealizada en el tramo útil 60–90% HR:
+   65%→6.8   ·   75%→8.5   ·   85%→10.2  (% de humedad del grano) */
+const emcStore=hr=>0.17*hr-4.25;
+/* permeabilidad al vapor: qué tanto se acerca el grano a la EMC cada día */
+const PACK_K={fique:0.085,polipropileno:0.055,hermetico:0.012};
+const PACK_NAME={fique:'saco de fique',polipropileno:'saco de polipropileno',hermetico:'bolsa hermética'};
+const WET_LIMIT=7.8;                                   // umbral de actividad de agua aw≈0.70: por encima, el moho crece
 const VARIETIES={
   trinitario:{name:'Trinitario',aroma:0.66,acid:0.50,bitter:0.46,yield:0.85,note:'Equilibrado y resistente. Perdona errores; techo de aroma medio-alto.'},
   ccn51:{name:'CCN-51',aroma:0.34,acid:0.70,bitter:0.64,yield:1.0,note:'Productivo y robusto, pero ácido y de aroma corriente. No esperes fino de aroma.'},
@@ -316,22 +391,45 @@ function evaluate(lot,d){
   const caseHarden=(d.secado==='artificial'&&d.dryDays<5)?0.35:0;
   const overDry=finalMoisture<5.2?clamp((5.2-finalMoisture)/2)*0.4:0;
   const acidMod=ACID_MOD[d.secado]*clamp(d.dryDays/6);
-  const aroma=clamp(V.aroma*fermQ*(0.55+0.45*dryQ)-ammonia*0.9-caseHarden*0.6-mold*0.5);
-  const frutal=clamp(V.aroma*fermQ*(0.6+0.4*dryQ)-ammonia-caseHarden*0.4-mold*0.5);
+  /* --- almacenamiento --- */
+  const hrStore=STORE_HR[lot.weather]+(d.estiba==='piso'?FLOOR_HR:0);
+  const emc=emcStore(hrStore);
+  const storeMoisture=emc+(finalMoisture-emc)*Math.exp(-PACK_K[d.empaque]*d.storeDays);
+  /* El moho responde a la humedad *sostenida* durante todo el almacenamiento, no a
+     la del último día: por eso se integra la curva y se usa su promedio. Es lo que
+     hace que guardar húmedo en hermético sea peor que en fique, aunque el saco
+     hermético se vea mejor mientras el grano entre seco. */
+  const kt=PACK_K[d.empaque]*d.storeDays;
+  const heldMoisture=kt<1e-6?finalMoisture:emc+(finalMoisture-emc)*(1-Math.exp(-kt))/kt;
+  const excess=clamp((heldMoisture-WET_LIMIT)/4.5);
+  const moldStore=clamp(excess*clamp(d.storeDays/12));
+  const moldTot=Math.max(mold,moldStore);
+  /* plaga de bodega (Lasioderma / Ephestia): la atmósfera hermética la asfixia */
+  const pestRisk=clamp(clamp((d.storeDays-25)/60)*(d.empaque==='hermetico'?0.2:1)*(d.estiba==='piso'?1.5:1));
+  /* el arrume directo al piso absorbe humedad y olor a tierra */
+  const offOdor=d.estiba==='piso'?clamp(0.10+0.20*clamp(d.storeDays/40)):0;
+  /* pérdida de volátiles con el tiempo; el empaque hermético los retiene */
+  const aromaKeep=1-clamp(d.storeDays/150)*(d.empaque==='hermetico'?0.30:1.0)*0.55;
+  /* reposo: en las primeras dos semanas el arrume homogeneiza humedad entre granos */
+  const repose=clamp(d.storeDays/12)*0.05;
+  const marketMult=1+0.0045*d.storeDays;   // esperar en bodega permite vender en mejor punto de mercado
+                                           // (sin esta prima, vender el mismo día domina siempre y la etapa no enseña nada)
+  const aroma=clamp((V.aroma*fermQ*(0.55+0.45*dryQ)-ammonia*0.9-caseHarden*0.6-moldTot*0.5)*aromaKeep);
+  const frutal=clamp((V.aroma*fermQ*(0.6+0.4*dryQ)-ammonia-caseHarden*0.4-moldTot*0.5)*aromaKeep);
   const acidez=clamp(V.acid+acidMod+caseHarden*0.5-fermQ*0.12);
   const amargor=clamp(V.bitter+(under?0.22:0)-fermQ*0.16);
   const astring=clamp((under?0.55:0.15)+(1-fermQ)*0.5-dryQ*0.1);
   const profile={Aroma:aroma,'Frutal/floral':frutal,Acidez:acidez,Amargor:amargor,Astringencia:astring};
-  const defect=Math.max(ammonia,mold,caseHarden*0.8,overDry);
+  const defect=Math.max(ammonia,moldTot,caseHarden*0.8,overDry,pestRisk,offOdor);
   const balance=1-Math.abs(acidez-0.4)*0.6-Math.abs(amargor-0.4)*0.5;
-  let qi=clamp(aroma*0.34+(1-astring)*0.2+clamp(balance)*0.2+dryQ*0.14+fermQ*0.12-defect);
+  let qi=clamp(aroma*0.34+(1-astring)*0.2+clamp(balance)*0.2+dryQ*0.14+fermQ*0.12+repose-defect);
   let grade,gsub,base;
-  if(defect>0.45||mold>0.4){grade='Pasilla / rechazo';gsub='defecto que descalifica';base=5800;}
+  if(defect>0.45||moldTot>0.4){grade='Pasilla / rechazo';gsub='defecto que descalifica';base=5800;}
   else if(qi>=0.76&&V.aroma>=0.6&&aroma>=0.62){grade='Fino de aroma';gsub='premium · exportación';base=15000+aroma*7000;}
   else if(qi>=0.55){grade='Comercial';gsub='grado estándar bueno';base=10000+qi*2500;}
   else{grade='Corriente';gsub='mercado local básico';base=8200;}
-  const dryKg=lot.kg*V.yield*0.42*(1-lot.monilia);
-  const priceKg=base*(0.95+Math.random()*0.1),revenue=priceKg*dryKg;
+  const dryKg=lot.kg*V.yield*0.42*(1-lot.monilia)*(1-pestRisk*0.25);   // la plaga se come masa vendible
+  const priceKg=base*(0.95+Math.random()*0.1)*marketMult,revenue=priceKg*dryKg;
   const why=[];
   if(under)why.push(['#9270CE','<b>Fermentación corta.</b> Granos pizarra: astringencia y amargor altos, aroma bajo.']);
   else if(over)why.push(['#8B9A5A','<b>Sobre-fermentación.</b> Notas a amoníaco; el aroma fino se pierde.']);
@@ -344,7 +442,20 @@ function evaluate(lot,d){
   else if(d.secado==='sol')why.push(['#CE8B3A','<b>Secado solar lento.</b> La acidez se disipa: mejor aroma.']);
   if(lot.weather==='lluvioso'&&d.secado!=='marquesina')why.push(['#AD9C84','Con lluvia, la marquesina protege el secado mejor que el sol directo.']);
   if(lot.monilia>0.2)why.push(['#AD9C84','Alta monilia ('+Math.round(lot.monilia*100)+'%): masa aprovechable perdida antes de empezar.']);
-  return {grade,gsub,priceKg,revenue,dryKg,finalMoisture,profile,fermState:under?'under':over?'over':'well',why};
+  /* --- lecturas de la etapa de almacenamiento --- */
+  if(d.storeDays===0)why.push(['#AD9C84','<b>Venta inmediata.</b> Sin riesgo de bodega, pero tampoco reposo ni espera de mercado.']);
+  else{
+    if(moldStore>0.3)why.push(['#C4713E','<b>Moho en bodega.</b> Guardaste a '+heldMoisture.toFixed(1)+'% durante '+d.storeDays+' días: por encima de '+WET_LIMIT+'% el hongo crece en el arrume.']);
+    else if(storeMoisture>finalMoisture+0.4)why.push(['#AD9C84','El grano <b>rehumedeció</b> en bodega ('+finalMoisture.toFixed(1)+'% → '+storeMoisture.toFixed(1)+'%): la bodega está a '+Math.round(hrStore)+'% de HR.']);
+    else if(d.empaque==='hermetico'&&finalMoisture<=WET_LIMIT)why.push(['#CE8B3A','<b>Empaque hermético.</b> Selló la humedad de salida del patio ('+finalMoisture.toFixed(1)+'%) y frenó la pérdida de aroma.']);
+    if(d.empaque==='hermetico'&&finalMoisture>WET_LIMIT+0.5)why.push(['#C4713E','<b>Hermético con grano húmedo.</b> La barrera no seca: encerró el problema en vez de resolverlo.']);
+    if(pestRisk>0.25)why.push(['#C4713E','<b>Plaga de bodega</b> tras '+d.storeDays+' días: se comió parte de la masa vendible.']);
+    if(offOdor>0)why.push(['#C4713E','<b>Arrume directo al piso.</b> Humedad capilar y olor a tierra pasan al grano. La estiba lo evita.']);
+    if(aromaKeep<0.85)why.push(['#AD9C84','Almacenamiento largo en empaque permeable: se fueron los volátiles aromáticos.']);
+    if(repose>0.03&&moldStore<0.1)why.push(['#CE8B3A','<b>Reposo bien hecho.</b> El arrume homogeneizó humedad y estabilizó el perfil.']);
+  }
+  return {grade,gsub,priceKg,revenue,dryKg,finalMoisture,storeMoisture,hrStore,emc,moldStore,pestRisk,offOdor,
+    marketMult,aromaKeep,profile,fermState:under?'under':over?'over':'well',why};
 }
 
 /* ===================== SINTETIZADOR DE AUDIO (Web Audio API) ===================== */
@@ -723,7 +834,10 @@ function texRepeat(key,rx,ry){const t=TEX[key].clone();t.needsUpdate=true;
 /* ---------- función de elevación / relieve 3D del terreno ---------- */
 function getGroundY(x,z){
   const distFromCenter=Math.hypot(x-0.5,z-1.5);
-  const flatten=clamp((distFromCenter-6.0)/8.0,0,1);
+  let flatten=clamp((distFromCenter-6.0)/8.0,0,1);
+  /* segunda explanada nivelada: la bodega de almacenamiento, al oriente del patio.
+     Sin esto el edificio queda sobre una loma y la losa flota o se entierra. */
+  flatten=Math.min(flatten,clamp((Math.hypot(x-14.0,z-1.0)-4.6)/5.0,0,1));
   if(flatten<=0)return 0;
   const hill1=Math.sin(x*0.12)*Math.cos(z*0.14)*1.6;
   const hill2=Math.sin(x*0.22+1.2)*0.8;
@@ -765,6 +879,8 @@ patch(-4.5,-1.5,8,6);     // zona del cajón
 patch(5.5,-1,8,7);      // patio de secado
 patch(0.5,5,8,5);       // bodega
 patch(7.5,4.5,4.5,4.5); // estación meteorológica
+patch(14.0,1.0,6.4,7.0);  // bodega de almacenamiento (al oriente del patio)
+patch(10.4,1.0,4.4,3.0);  // sendero del patio a la bodega
 patch(-14,2,20,24);     // gran plantación de cacao (cacaotal)
 
 /* ---------- estaciones 3D realistas ---------- */
@@ -838,6 +954,36 @@ let anemo,veleta;
   part(X-1.25,0.68,Z+0.55,0.14,1.36,0.14,'post');
   part(X-1.25,1.52,Z+0.55,1.12,0.78,0.10,'metal');
   part(X-1.25,1.52,Z+0.49,0.94,0.60,0.04,'screen');
+})();
+// Bodega de almacenamiento: losa elevada, estibas de madera, arrume de sacos e higrómetro
+// La cara oeste queda abierta (es la puerta) para que se vea el arrume desde el sendero.
+let hygroPanel;
+(function(){const X=14.0,Z=1.0;   // a la derecha del corredor del perro (x=10.4), que no admite muros
+  part(X,0.18,Z,5.0,0.36,5.6,'slab');                       // losa sobre sobrecimiento (aísla del suelo)
+  // muros de tabla: norte, sur, oriente y las dos jambas de la puerta al occidente
+  part(X,1.15,Z+2.7,5.0,1.60,0.18,'plank');
+  part(X,1.15,Z-2.7,5.0,1.60,0.18,'plank');
+  part(X+2.4,1.15,Z,0.18,1.60,5.6,'plank');
+  part(X-2.4,1.15,Z+2.15,0.18,1.60,1.30,'plank');
+  part(X-2.4,1.15,Z-2.15,0.18,1.60,1.30,'plank');
+  // postes de esquina y techo a dos caídas simplificado
+  [[-2.4,-2.7],[-2.4,2.7],[2.4,-2.7],[2.4,2.7]].forEach(([dx,dz])=>
+    part(X+dx,1.35,Z+dz,0.22,2.20,0.22,'post'));
+  part(X,2.58,Z,5.8,0.18,6.4,'roof');
+  part(X,2.92,Z,2.4,0.52,6.4,'roof');                       // caballete
+  // tres estibas de madera con su arrume de sacos encima
+  const sackGeo2=new THREE.DodecahedronGeometry(0.46,1);
+  sackGeo2.scale(0.9,1.25,0.9);
+  [[-1.3,-1.5],[-1.3,1.5],[1.2,0]].forEach(([dx,dz])=>{
+    part(X+dx,0.46,Z+dz,1.90,0.20,1.50,'plank');            // estiba: separa el saco del piso
+    [[-0.45,0.90],[0.45,0.90],[0,1.62]].forEach(([sx,sy])=>{
+      const s=new THREE.Mesh(sackGeo2,mat('sack'));
+      s.position.set(X+dx+sx,sy,Z+dz);world.add(s);
+    });
+  });
+  // higrómetro de pared, mirando a la puerta
+  part(X+2.25,1.40,Z,0.10,0.62,0.86,'metal');
+  hygroPanel=part(X+2.19,1.40,Z,0.04,0.44,0.66,'screen');
 })();
 // Cacaoteros realistas (Theobroma cacao - caulifloria)
 /* posiciones de troncos para colisión: debe declararse ANTES de plantar el cacaotal,
@@ -1059,7 +1205,9 @@ const SOLIDS=[
   {x0:-6.1,x1:-2.9,z0:-2.1,z1:-0.3}, // Cajón de fermentación
   {x0:2.4,x1:8.6,z0:-2.8,z1:3.4},   // Patio de secado y marquesina
   {x0:-1.4,x1:2.4,z0:2.8,z1:5.2},   // Bodega de acopio
-  {x0:6.1,x1:8.9,z0:3.1,z1:5.9}    // Estación meteorológica
+  {x0:6.1,x1:8.9,z0:3.1,z1:5.9},   // Estación meteorológica
+  {x0:11.6,x1:16.4,z0:-1.7,z1:3.7} // Bodega de almacenamiento
+                                   // (el corredor del perro va por x=10.4: el muro oeste no puede bajar de 11.6)
   // (el perro se movía pero su caja se quedaba fija aquí: era un muro invisible)
 ];
 function blocked(x,z){
@@ -1071,6 +1219,7 @@ function blocked(x,z){
 const STATIONS=[
   {id:'ferment',name:'cajón',x:-4.5,z:-1.2,lbl:'Abrir cajón'},
   {id:'dry',name:'patio',x:5.5,z:0.3,lbl:'Abrir patio'},
+  {id:'store',name:'almacenamiento',x:11.1,z:1.0,lbl:'Entrar a la bodega'},
   {id:'sell',name:'bodega',x:0.5,z:4.0,lbl:'Ir a bodega'},
   {id:'weather',name:'estación',x:7.5,z:4.5,lbl:'Ver el clima'},
   {id:'tree',name:'árboles',x:-8.5,z:3.5,lbl:'Inspeccionar mazorcas'},
@@ -1082,6 +1231,7 @@ const beaconGeo=new THREE.OctahedronGeometry(0.26,0);
 const beaconMats={
   ferment:new THREE.MeshBasicMaterial({color:0x9270CE,wireframe:true}),
   dry:new THREE.MeshBasicMaterial({color:0xCE8B3A,wireframe:true}),
+  store:new THREE.MeshBasicMaterial({color:0x49c6b0,wireframe:true}),
   sell:new THREE.MeshBasicMaterial({color:0xE7BE63,wireframe:true}),
   weather:new THREE.MeshBasicMaterial({color:0x4287f5,wireframe:true}),
   tree:new THREE.MeshBasicMaterial({color:0x5cb85c,wireframe:true})
@@ -1438,10 +1588,16 @@ frame();
 
 /* ===================== JUEGO / FLUJO ===================== */
 let idx=0,total=0,grades=[];
-const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol'};
-window.resetGame=function(){const f=$('final');if(f)f.classList.add('hidden');idx=0;total=0;grades=[];loadLot();paused=false;};
+const dec={fermDays:5,volteos:3,cajon:'madera',dryDays:6,secado:'sol',storeDays:15,empaque:'fique',estiba:'estiba'};
+/* Predicción del lote en curso e historial de aciertos: el jugador declara qué espera
+   antes de abrir el saco. Ese contraste es lo que cierra el ciclo experiencial. */
+const pred={grade:null,moist:null};
+let predLog=[];
+window.resetGame=function(){const f=$('final');if(f)f.classList.add('hidden');idx=0;total=0;grades=[];predLog=[];loadLot();paused=false;};
 function loadLot(){
   const lot=LOTS[idx];dec.fermDays=5;dec.volteos=3;dec.cajon='madera';dec.dryDays=6;dec.secado='sol';
+  dec.storeDays=15;dec.empaque='fique';dec.estiba='estiba';
+  pred.grade=null;pred.moist=null;seg('pGrade',null);seg('pMoist',null);
   hour=6.0;                                   // cada lote arranca a las 06:00 AM, con el amanecer sobre el cacaotal
   syncControls();setWeather(lot.weather);setBeans('beanW');
   $('hClock').textContent=fmtHour(hour);
@@ -1453,9 +1609,10 @@ function loadLot(){
   $('dryWeatherNote').textContent=lot.weather==='lluvioso'?'Está lloviendo: el sol directo no seca bien. Marquesina o más días.':lot.weather==='variable'?'Clima variable: chubascos posibles, cuida el secado.':'Día soleado: buen secado al sol.';
 }
 function syncControls(){
-  $('fd').value=dec.fermDays;$('vo').value=dec.volteos;$('dd').value=dec.dryDays;
+  $('fd').value=dec.fermDays;$('vo').value=dec.volteos;$('dd').value=dec.dryDays;$('sd').value=dec.storeDays;
   $('fdVal').textContent=dec.fermDays+' d';$('voVal').textContent=dec.volteos;$('ddVal').textContent=dec.dryDays+' d';
-  seg('cajon',dec.cajon);seg('secado',dec.secado);
+  $('sdVal').textContent=dec.storeDays+' d';
+  seg('cajon',dec.cajon);seg('secado',dec.secado);seg('empaque',dec.empaque);seg('estiba',dec.estiba);
 }
 function beanPreview(){const eff=dec.fermDays*(0.75+0.25*BOX_HEAT[dec.cajon]);return eff<4.2?'beanU':dec.fermDays>=7?'beanO':'beanW';}
 $('fd').addEventListener('input',e=>{dec.fermDays=+e.target.value;$('fdVal').textContent=dec.fermDays+' d';setBeans(beanPreview());});
@@ -1463,6 +1620,38 @@ $('vo').addEventListener('input',e=>{dec.volteos=+e.target.value;$('voVal').text
 $('dd').addEventListener('input',e=>{dec.dryDays=+e.target.value;$('ddVal').textContent=dec.dryDays+' d';});
 $('cajon').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.cajon=b.dataset.v;seg('cajon',dec.cajon);setBeans(beanPreview());});
 $('secado').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.secado=b.dataset.v;seg('secado',dec.secado);});
+
+/* ---------- bodega de almacenamiento ---------- */
+/* humedad con la que el grano sale del patio: es el insumo de toda la etapa de bodega */
+function entryMoisture(){
+  const eq=DRY_EQ[dec.secado],k=DRY_K[dec.secado][curW];
+  return eq+(K.START_MOISTURE-eq)*Math.exp(-k*dec.dryDays);
+}
+function renderStore(){
+  const m0=entryMoisture();
+  const hr=STORE_HR[curW]+(dec.estiba==='piso'?FLOOR_HR:0);
+  const eq=emcStore(hr);
+  $('storeNote').innerHTML='El grano sale del patio a <b>'+m0.toFixed(1)+'%</b>. Esta bodega está a <b>'+
+    Math.round(hr)+'%</b> de humedad relativa, así que el grano tiende a <b>'+eq.toFixed(1)+
+    '%</b>. Por encima de '+WET_LIMIT+'% empieza a crecer el moho en el arrume.';
+  $('storeProj').innerHTML=[['fique','Saco de fique'],['polipropileno','Polipropileno'],['hermetico','Bolsa hermética']]
+    .map(([p,nm])=>{const mf=eq+(m0-eq)*Math.exp(-PACK_K[p]*dec.storeDays);
+      return '<div class="wx-row'+(dec.empaque===p?' on':'')+'"><span class="nm">'+nm+'</span>'+
+        '<span class="kk">k '+PACK_K[p].toFixed(3)+'</span>'+
+        '<span class="dd"'+(mf>WET_LIMIT?' style="color:var(--danger)"':'')+'>'+mf.toFixed(1)+'%</span></div>';}).join('');
+  /* el higrómetro de pared del almacén cambia de color con el riesgo */
+  const mf=eq+(m0-eq)*Math.exp(-PACK_K[dec.empaque]*dec.storeDays);
+  hygroPanel.material=mat('screen',mf>WET_LIMIT+1?0xC4713E:mf>WET_LIMIT?0xE7BE63:0x49c6b0);
+}
+$('sd').addEventListener('input',e=>{dec.storeDays=+e.target.value;$('sdVal').textContent=dec.storeDays+' d';renderStore();});
+$('empaque').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.empaque=b.dataset.v;seg('empaque',dec.empaque);renderStore();});
+$('estiba').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;dec.estiba=b.dataset.v;seg('estiba',dec.estiba);renderStore();});
+
+/* ---------- predicción antes del resultado ---------- */
+$('pGrade').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;pred.grade=b.dataset.v;seg('pGrade',pred.grade);playSFX('click');});
+$('pMoist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;pred.moist=b.dataset.v;seg('pMoist',pred.moist);playSFX('click');});
+function moistBand(m){return m<6.5?'seco':m<=8.0?'punto':'humedo';}
+const BAND_NAME={seco:'bajo 6,5% (sobre-seco)',punto:'entre 6,5 y 8% (en punto)',humedo:'sobre 8% (húmedo)'};
 
 /* ---------- estación meteorológica ---------- */
 function ambient(){
@@ -1510,6 +1699,7 @@ function renderWeather(){
 function tryInteract(){if(paused||!nearStation)return;
   if(nearStation.id==='ferment')openPanel('panelFerment');
   else if(nearStation.id==='dry')openPanel('panelDry');
+  else if(nearStation.id==='store')openPanel('panelStore');
   else if(nearStation.id==='sell')openPanel('panelSell');
   else if(nearStation.id==='weather')openPanel('panelWeather');
   else if(nearStation.id==='tree')openPanel('panelTree');}
@@ -1518,21 +1708,56 @@ let wxTimer=null;
 function openPanel(id){initAudio();playSFX('open');paused=true;$('interactBtn').classList.add('hidden');
   ['joy','lookHint','crosshair'].forEach(i=>$(i).classList.add('hidden'));
   if(id==='panelWeather'){renderWeather();wxTimer=setInterval(renderWeather,500);}
+  if(id==='panelStore')renderStore();
+  if(id==='panelSell')renderChain();
   $(id).classList.remove('hidden');}
 window.closePanel=function(){playSFX('close');
   if(wxTimer){clearInterval(wxTimer);wxTimer=null;}
-  ['panelFerment','panelDry','panelSell','panelWeather','panelTree'].forEach(i=>$(i).classList.add('hidden'));
+  ['panelFerment','panelDry','panelStore','panelSell','panelPredict','panelWeather','panelTree'].forEach(i=>$(i).classList.add('hidden'));
   ['joy','lookHint','crosshair'].forEach(i=>$(i).classList.remove('hidden'));paused=false;};
 window.toggleCutTest=function(){$('cutTestWrap').classList.toggle('hidden');};
 
+/* resumen de la cadena completa antes de vender: el jugador no tiene por qué
+   sostener las tres etapas en memoria de trabajo para poder razonar el resultado */
+function renderChain(){
+  $('sellChain').innerHTML='<b>Fermentación:</b> '+dec.fermDays+' d · '+dec.volteos+' volteos · cajón de '+dec.cajon+
+    '<br><b>Secado:</b> '+dec.dryDays+' d · '+dec.secado+' · clima '+WNAME[curW].toLowerCase()+
+    '<br><b>Almacenamiento:</b> '+dec.storeDays+' d · '+PACK_NAME[dec.empaque]+' · '+
+    (dec.estiba==='piso'?'directo al piso':'sobre estiba');
+}
+/* Vender pasa primero por la predicción: declarar qué esperas antes de ver el
+   resultado es lo que convierte la partida en aprendizaje y no en tanteo. */
 window.doProcess=function(){
-  playSFX('sale');
+  playSFX('open');
   $('panelSell').classList.add('hidden');
+  seg('pGrade',pred.grade);seg('pMoist',pred.moist);
+  $('predHint').textContent='Anota tu predicción antes de ver el resultado. No hay castigo por fallar: el punto es comparar lo que esperabas con lo que pasó.';
+  $('predHint').style.borderLeftColor='var(--amber)';
+  $('panelPredict').classList.remove('hidden');
+};
+window.confirmPredict=function(){
+  if(!pred.grade||!pred.moist){
+    $('predHint').textContent='Marca las dos: el grado que esperas y la humedad con la que crees que sale el grano.';
+    $('predHint').style.borderLeftColor='var(--danger)';
+    playSFX('close');return;
+  }
+  playSFX('sale');
+  $('panelPredict').classList.add('hidden');
   const r=evaluate(LOTS[idx],dec);total+=r.revenue;grades.push(r.grade);
   $('hWallet').textContent=cop(total);
   $('rGrade').textContent=r.grade;$('rGrade').style.color=r.grade==='Fino de aroma'?'var(--gold)':r.grade==='Pasilla / rechazo'?'var(--danger)':'var(--pulp)';
   $('rSub').textContent=r.gsub;$('rPrice').textContent=cop(r.priceKg);
-  $('rDetail').textContent=r.dryKg.toFixed(1)+' kg seco · humedad '+r.finalMoisture.toFixed(1)+'% · '+cop(r.revenue);
+  $('rDetail').textContent=r.dryKg.toFixed(1)+' kg seco · patio '+r.finalMoisture.toFixed(1)+
+    '% → venta '+r.storeMoisture.toFixed(1)+'% · '+cop(r.revenue);
+  /* contraste predicción ↔ resultado */
+  const bandReal=moistBand(r.storeMoisture);
+  const okG=pred.grade===r.grade,okM=pred.moist===bandReal;
+  predLog.push({lot:idx,predGrade:pred.grade,realGrade:r.grade,predMoist:pred.moist,realMoist:bandReal,
+    okG,okM,dec:Object.assign({},dec),qGrade:r.grade,revenue:r.revenue});
+  const row=(ok,label,mine,real)=>'<div class="pred-row '+(ok?'ok':'no')+'"><span class="mark">'+(ok?'✓':'✗')+
+    '</span><span><b>'+label+':</b> predijiste <b>'+mine+'</b>'+(ok?'. Acertaste.':' y salió <b>'+real+'</b>.')+'</span></div>';
+  $('rPredict').innerHTML=row(okG,'Grado',pred.grade,r.grade)+
+    row(okM,'Humedad al vender',BAND_NAME[pred.moist],BAND_NAME[bandReal]);
   drawRadar(r.profile,$('rRadar'));
   $('rWhy').innerHTML=r.why.map(([c,t])=>'<div class="why-item"><span class="dot" style="background:'+c+'"></span><span>'+t+'</span></div>').join('');
   $('rNext').textContent=idx>=LOTS.length-1?'Ver balance':'Siguiente lote';
@@ -1551,9 +1776,22 @@ function renderFinal(){
   if(rech===0)badges.push('🧹 Cero Defectos (Sin pasillas)');
   if(total>=2800000)badges.push('💰 Empresario (+$2.8M COP)');
   if(grades.length===5)badges.push('🌾 Campaña Completa');
+  const hits=predLog.filter(p=>p.okG).length;
+  if(hits>=4)badges.push('🔮 Lee el Grano (4+ predicciones)');
+  if(predLog.length>=4&&predLog.slice(-2).every(p=>p.okG&&p.okM))badges.push('📈 Criterio Formado');
   $('fTally').innerHTML=Object.entries(count).map(([k,v])=>'<span>'+v+'× '+k+'</span>').join('')+
     (badges.length?'<div class="badge-grid">'+badges.map(b=>'<div class="badge">'+b+'</div>').join('')+'</div>':'');
   $('fVerdict').textContent=fino>=3?'Manejo de maestro: convertiste la postcosecha en valor.':rech>=2?'Varios lotes se perdieron en postcosecha. Buena materia prima, decisiones que la desperdiciaron.':'Campaña sólida. Cada grado que subes en calidad se paga varias veces en el precio.';
+  /* curva de aciertos: cuántas de las dos predicciones acertó en cada lote */
+  $('fCurve').innerHTML=predLog.map((p,i)=>{
+    const n=(p.okG?1:0)+(p.okM?1:0);
+    return '<i class="'+(n===2?'ok':n===0?'no':'')+'">Lote '+String.fromCharCode(65+i)+'<br>'+n+'/2</i>';
+  }).join('')||'<i>sin predicciones</i>';
+  const early=predLog.slice(0,2).filter(p=>p.okG).length,late=predLog.slice(-2).filter(p=>p.okG).length;
+  $('fPredVerdict').textContent=late>early
+    ? 'Empezaste fallando y terminaste anticipando el grado: eso es haber entendido el proceso, no haber tenido suerte.'
+    : hits>=4?'Predijiste bien casi todos los lotes desde el principio: ya traías el criterio.'
+    : 'Todavía te cuesta anticipar el resultado. Revisa qué etapa te sorprendió más y vuelve a correr la campaña.';
   $('final').classList.remove('hidden');
 }
 function drawRadar(profile,host){

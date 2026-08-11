@@ -16,6 +16,8 @@ Serious game explorable en 3D sobre el proceso de **postcosecha de cacao** en Ch
 - 🔊 **Audio Sintético (Web Audio API)**: Pasos en terreno, viento y lluvia ambiental continua, ladridos, efectos de interfaz y campanada de venta sin MP3/WAV externos.
 - 🧭 **Navegación e Interfaz**: Mini-brújula HUD, balizas 3D flotantes en estaciones, luciérnagas nocturnas y vapor de fermentación.
 - 🧪 **Ciencia Postcosecha Real**: Simulación de fermentación (días, volteos, recipiente de madera/microlote/canasto), secado solar/marquesina/artificial y prueba de corte de grano (*Cut Test*).
+- 📦 **Almacenamiento con Isoterma de Sorción**: El grano seco sigue intercambiando humedad con el aire de la bodega. Decide **días de almacenamiento**, **empaque** (fique / polipropileno / hermético) y **arrume** (sobre estiba o directo al piso), con moho, plaga de bodega, pérdida de volátiles y prima de precio por esperar mercado. El empaque hermético solo te salva si secaste bien: con grano húmedo, sella el problema.
+- 🔮 **Predice Antes de Ver**: Antes de abrir el saco declaras qué grado y qué humedad esperas. El resultado se muestra contrastado con tu predicción, y el balance final dibuja tu **curva de aciertos lote a lote**.
 - 🏆 **Medallas y Logros**: Reconocimientos postcosecha al cerrar la campaña de 5 lotes.
 
 ---

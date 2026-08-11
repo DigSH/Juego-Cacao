@@ -52,6 +52,11 @@ está fuera de alcance, **fallan en silencio** y el síntoma aparece lejos de la
 - Si algo se mueve, no le pongas una caja fija en `SOLIDS`: se queda donde
   arrancó y deja un muro invisible.
 - Todo lo que camina debe usar `blocked(x,z)` y `getGroundY(x,z)` en cada cuadro.
+- Una caja nueva en `SOLIDS` no puede cruzar los tramos rectos que unen los
+  waypoints de `DOG_WPS` (el rectángulo x ∈ [-2, 10.4], z ∈ [-5.4, 7.2]), con
+  0.25 de margen. El perro no tiene *pathfinding*: se clava contra la pared.
+- Un edificio fuera de las explanadas de `getGroundY()` queda sobre una loma y su
+  losa flota. Añade su zona plana a la cadena de `Math.min` de esa función.
 
 ## Trabajo concurrente
 
